@@ -1,0 +1,28 @@
+# Python-generated files
+__pycache__/
+__pycache__/*
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+*.egg
+*.whl
+.pytest_cache/
+.pytest_cache/*
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# IDE-specific files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Virtual environments
+.venv
+
+logs/*
