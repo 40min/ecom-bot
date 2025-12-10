@@ -18,9 +18,9 @@ This is a **demo/test project** created to explore and experiment with LangChain
 
 ## Architecture
 
-- `app.py` - Main application entry point with logging setup
-- `bot.py` - LangChain-based CLI bot implementation
-- `order_db.py` - Order database simulation and lookup tools
+- `app_lc.py` - Main application entry point with logging setup
+- `src/bot.py` - LangChain-based CLI bot implementation
+- `src/order_db.py` - Order database simulation and lookup tools
 - `data/faq.json` - Customer service FAQ data
 - `data/orders.json` - Sample order data for testing
 
@@ -46,7 +46,7 @@ This is a **demo/test project** created to explore and experiment with LangChain
 
 3. **Run the demo:**
    ```bash
-   python app.py
+   python app_lc.py
    ```
 
 ## Usage Examples

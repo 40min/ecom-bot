@@ -6,8 +6,8 @@ import datetime
 
 from dotenv import load_dotenv
 
-from bot import CliBot
-from order_db import load_orders
+from src.bot import CliBot
+from src.orders_db import load_orders
 
 
 load_dotenv()
@@ -41,7 +41,7 @@ if __name__ == "__main__":
     
     shop_name = os.getenv("BRAND_NAME", "Магазин")
     model_name = os.getenv("OPENROUTER_API_MODEL", "gpt-4o-mini")
-    api_key = os.getenv("OPENAI_API_KEY")
+    api_key = os.getenv("OPENROUTER_API_KEY")
     if not api_key:
         raise ValueError("OPENAI_API_KEY is not set")
 

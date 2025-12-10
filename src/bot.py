@@ -17,7 +17,7 @@ from openai import (
 logger = logging.getLogger(__name__)
 
 # Import the lookup_order_tool from order_db module
-from order_db import lookup_order_tool
+from src.orders_db import lookup_order_tool
 
 
 # Создаём класс для CLI-бота
@@ -28,11 +28,11 @@ class CliBot():
                  shop_name: str,                 
                  faq_file: str = './data/faq.json',
 
-):                
-        
+):        
         self.chat_model = ChatOpenAI(
             model=model_name,
-            temperature=0.3,            
+            temperature=0.3,
+            base_url="https://openrouter.ai/api/v1",       
             api_key=api_key,
             timeout=15,
         )
