@@ -24,8 +24,9 @@ from src.orders_db import lookup_order_tool
 class CliBot():
     def __init__(self, 
                  model_name: str, 
-                 api_key: str, 
-                 shop_name: str,                 
+                 api_key: str,
+                 shop_name: str,
+                 persona: str,
                  faq_file: str = './data/faq.json',
 
 ):        
@@ -54,12 +55,6 @@ class CliBot():
 
         Когда клиент спрашивает о статусе заказа либо вводит команду "/order order_id" (например, "/order 12345"), 
         используй инструмент для поиска информации о заказе.
-
-        Статусы заказов:
-        - "in_transit" = В пути
-        - "delivered" = Доставлен
-        - "processing" = Обрабатывается
-        - "cancelled" = Отменён
         """        
 
         self.checkpointer = InMemorySaver()

@@ -44,6 +44,7 @@ if __name__ == "__main__":
     api_key = os.getenv("OPENROUTER_API_KEY")
     if not api_key:
         raise ValueError("OPENAI_API_KEY is not set")
+    persona = os.getenv("PERSONA", "alex")
 
     # Load orders data
     load_orders()
@@ -52,6 +53,7 @@ if __name__ == "__main__":
         model_name = model_name,
         api_key=api_key,
         shop_name=shop_name,
+        persona=persona,
     )
 
     logging.info("=== New session ===")
