@@ -18,22 +18,22 @@ logger = logging.getLogger(__name__)
 
 # Import the lookup_order_tool from order_db module
 from src.orders_db import lookup_order_tool
+from src.style_config import StyleConfig
 
 
 # Создаём класс для CLI-бота
 class CliBot():
-    def __init__(self, 
-                 model_name: str, 
-                 api_key: str,
-                 shop_name: str,
-                 persona: str,
+    def __init__(self,
+                 model_name: str,
+                 api_key: str,                 
+                 person: StyleConfig,
                  faq_file: str = './data/faq.json',
 
-):        
+):
         self.chat_model = ChatOpenAI(
             model=model_name,
             temperature=0.3,
-            base_url="https://openrouter.ai/api/v1",       
+            base_url="https://openrouter.ai/api/v1",
             api_key=api_key,
             timeout=15,
         )
@@ -41,22 +41,23 @@ class CliBot():
         # Load FAQ data
         faq_data = self._load_faq(faq_file)
         
-        system_prompt: str = f"""
-        Ты полезный сотрудник интернет-магазина {shop_name}.
-        Отвечай на вопросы клиентов, используя информацию из базы данных магазина.
-        Будь вежливым и корректным.
-        Давай короткие ответы без лишних пояснения.
+        # Generate person system prompt addition
+        person_prompt = person.get_system_prompt_addition()
+        
+        system_prompt: str = f"""                
+        {person_prompt}
 
-        База знаний (FAQ):
-        {faq_data}
+Отвечай на вопросы клиентов, используя информацию из базы данных магазина.
+База знаний (FAQ):
+{faq_data}
 
-        Используй эту информацию для ответов на типичные вопросы клиентов.
-        Если вопрос не покрывается FAQ, отвечай на основе общих знаний о работе интернет-магазинов.
+Используй эту информацию для ответов на типичные вопросы клиентов.
+Если вопрос не покрывается FAQ, отвечай на основе общих знаний о работе интернет-магазинов.
 
-        Когда клиент спрашивает о статусе заказа либо вводит команду "/order order_id" (например, "/order 12345"), 
-        используй инструмент для поиска информации о заказе.
-        """        
-
+Когда клиент спрашивает о статусе заказа либо вводит команду "/order order_id" (например, "/order 12345"),
+используй инструмент для поиска информации о заказе.
+"""
+        
         self.checkpointer = InMemorySaver()
 
         self.agent = create_agent(

@@ -1,16 +1,16 @@
 """
-Persona module for loading and managing bot personality configurations.
+Style configuration module for loading and managing bot personality configurations.
 """
 
 import yaml
-from typing import Dict, List, Optional
+from typing import Dict, List
 from pydantic import BaseModel, Field
 
 
-class PersonaDetails(BaseModel):
-    """Pydantic model for individual persona configuration."""
+class PersonDetails(BaseModel):
+    """Pydantic model for individual person configuration."""
     name: str = Field(..., description="Character name")
-    persona: str = Field(..., description="Character description")
+    person: str = Field(..., description="Character description")
     avoid: List[str] = Field(default_factory=list, description="Things to avoid in responses")
     must_include: List[str] = Field(default_factory=list, description="Required elements in responses")
     fallback: Dict[str, str] = Field(default_factory=dict, description="Fallback responses for edge cases")
@@ -18,7 +18,7 @@ class PersonaDetails(BaseModel):
 
 class ToneConfig(BaseModel):
     """Pydantic model for tone configuration."""
-    persons: Dict[str, PersonaDetails] = Field(..., description="All available personas")
+    persons: Dict[str, PersonDetails] = Field(..., description="All available personas")
     sentences_max: int = Field(default=3, description="Maximum sentences per response")
     bullets: bool = Field(default=True, description="Whether to use bullet points")
 
@@ -29,41 +29,31 @@ class StyleGuide(BaseModel):
     tone: ToneConfig = Field(..., description="Tone configuration")    
 
 
-class Persona:
-    """Main interface class for persona management."""
+class StyleConfig:
+    """Main interface class for person management."""
     
-    def __init__(self, config: StyleGuide, persona_name: str):
+    def __init__(self, config: StyleGuide, person_name: str):
         """
-        Initialize Persona with loaded configuration.
+        Initialize Person with loaded configuration.
         
         Args:
             config: Validated StyleGuide configuration
-            persona_name: Name of the persona to use (e.g., 'alex', 'pahom')
+            persona_name: Name of the person to use (e.g., 'alex', 'pahom')
         """
         self.config = config
-        self.persona_name = persona_name
-        
-        # Validate persona exists
-        if persona_name not in config.tone.persons:
-            available_personas = list(config.tone.persons.keys())
-            raise ValueError(
-                f"Persona '{persona_name}' not found. "
-                f"Available personas: {available_personas}"
-            )
-        
-        self.persona_details = config.tone.persons[persona_name]
+        self.person_name = person_name        
     
     @classmethod
-    def load_persona(cls, persona_name: str, yaml_path: str = './data/style_guide.yaml') -> 'Persona':
+    def load(cls, person_name: str, yaml_path: str = './data/style_guide.yaml') -> 'StyleConfig':
         """
-        Load persona configuration from YAML file.
+        Load style configuration from YAML file.
         
         Args:
-            persona_name: Name of the persona to load (e.g., 'alex', 'pahom')
+            person_name: Name of the person to load (e.g., 'alex', 'pahom')
             yaml_path: Path to the YAML configuration file
             
         Returns:
-            Persona: Configured Persona object
+            StyleConfig: Configured StyleConfig object
             
         Raises:
             FileNotFoundError: If YAML file doesn't exist
@@ -84,29 +74,38 @@ class Persona:
         except Exception as e:
             raise ValueError(f"Invalid configuration format: {e}")
         
-        return cls(config, persona_name)
+        # Validate person exists
+        if person_name not in config.tone.persons:
+            available_personas = list(config.tone.persons.keys())
+            raise ValueError(
+                f"Person '{person_name}' not found. "
+                f"Available personas: {available_personas}"
+            )
+        
+        return cls(config, person_name)
     
     def get_system_prompt_addition(self) -> str:
         """
-        Generate system prompt section with persona details.
+        Generate system prompt section with person details.
         
         Returns:
-            str: Formatted system prompt addition with persona rules
+            str: Formatted system prompt addition with person rules
         """
-        persona = self.persona_details
+        person = self.config.tone.persons[self.person_name]
         tone_config = self.config.tone        
         
         # Build avoid list
-        avoid_list = "\n".join([f"  - {item}" for item in persona.avoid])
+        avoid_list = "\n".join([f"  - {item}" for item in person.avoid])
         
         # Build must_include list
-        must_include_list = "\n".join([f"  - {item}" for item in persona.must_include])
+        must_include_list = "\n".join([f"  - {item}" for item in person.must_include])
         
         # Build fallback response
-        fallback_response = persona.fallback.get('no_data', 'Извините, у меня нет информации по этому вопросу.')        
+        fallback_response = person.fallback.get('no_data', 'Извините, у меня нет информации по этому вопросу.')        
         
         prompt_addition = f"""
-Персона: {persona.persona}
+Ты {person.name} полезный сотрудник интернет-магазина {self.brand}.
+Характер: {person.person}
 
 Правила общения:
 Избегай:
@@ -131,14 +130,6 @@ class Persona:
         return self.config.brand
     
     @property
-    def available_personas(self) -> List[str]:
-        """Get list of all available persona names."""
+    def available_persons(self) -> List[str]:
+        """Get list of all available person names."""
         return list(self.config.tone.persons.keys())
-    
-    def __str__(self) -> str:
-        """String representation of the persona."""
-        return f"Persona(name={self.persona_name}, brand={self.brand})"
-    
-    def __repr__(self) -> str:
-        """Detailed representation of the persona."""
-        return f"Persona(name={self.persona_name}, brand={self.brand}, available={self.available_personas})"

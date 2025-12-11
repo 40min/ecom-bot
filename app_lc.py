@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 
 from src.bot import CliBot
 from src.orders_db import load_orders
+from src.style_config import StyleConfig
 
 
 load_dotenv()
@@ -36,7 +37,6 @@ logging.basicConfig(
     handlers=[handler],
     force=True
 )
-
 if __name__ == "__main__":
     
     shop_name = os.getenv("BRAND_NAME", "Магазин")
@@ -44,18 +44,19 @@ if __name__ == "__main__":
     api_key = os.getenv("OPENROUTER_API_KEY")
     if not api_key:
         raise ValueError("OPENAI_API_KEY is not set")
-    persona = os.getenv("PERSONA", "alex")
+    person_name = os.getenv("PERSON_NAME", "alex")
 
     # Load orders data
     load_orders()
     
+    # Load person configuration
+    person = StyleConfig.load(person_name, './data/style_guide.yaml')
+    
     bot = CliBot(
         model_name = model_name,
-        api_key=api_key,
-        shop_name=shop_name,
-        persona=persona,
+        api_key=api_key,        
+        person=person,
     )
 
     logging.info("=== New session ===")
     bot("user_123")
-    
