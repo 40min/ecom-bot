@@ -13,12 +13,13 @@ from openai import (
     APIConnectionError,
     AuthenticationError
 )
+from langchain_core.prompts import PromptTemplate, FewShotPromptTemplate
 
 logger = logging.getLogger(__name__)
 
 # Import the lookup_order_tool from order_db module
 from src.orders_db import lookup_order_tool
-from src.style_config import StyleConfig
+from prompts.style_config import StyleConfig
 
 
 # Создаём класс для CLI-бота
@@ -36,11 +37,15 @@ class CliBot():
             base_url="https://openrouter.ai/api/v1",
             api_key=api_key,
             timeout=15,
-        )
+        )        
+                    
+        self.checkpointer = InMemorySaver()
+        self.agent = self._create_agent(person, faq_file)
+
+    def _create_agent(self, person: StyleConfig, faq_file: str):
 
         # Load FAQ data
         faq_data = self._load_faq(faq_file)
-        
         # Generate person system prompt addition
         person_prompt = person.get_system_prompt_addition()
         
@@ -58,19 +63,16 @@ class CliBot():
 используй инструмент для поиска информации о заказе.
 """
         
-        self.checkpointer = InMemorySaver()
-
-        self.agent = create_agent(
+        return create_agent(
             model=self.chat_model,
             tools=[lookup_order_tool],
             system_prompt=system_prompt,
             checkpointer=self.checkpointer,
         )
 
-
-
     def _get_new_session_id(self, user_id: str) -> str:
         return f"{user_id}_{int(time.time())}"
+    
 
     def _load_faq(self, file_path: str) -> str:
         """Load and format FAQ data from JSON file"""
@@ -120,7 +122,7 @@ class CliBot():
                 print("Бот: До свидания!")
                 break
             if msg == "сброс":
-                # we neglect memory leak with old sessions as this is for testing purposes
+                self.checkpointer.delete_thread(session_id)
                 session_id = self._get_new_session_id(user_id)
                 print("Бот: Контекст диалога очищен.")
                 continue

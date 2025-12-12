@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 
 from src.bot import CliBot
 from src.orders_db import load_orders
-from src.style_config import StyleConfig
+from prompts.style_config import StyleConfig
 
 
 load_dotenv()
