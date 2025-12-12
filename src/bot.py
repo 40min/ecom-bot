@@ -17,18 +17,19 @@ from langchain_core.prompts import PromptTemplate, FewShotPromptTemplate
 
 logger = logging.getLogger(__name__)
 
-# Import the lookup_order_tool from order_db module
 from src.orders_db import lookup_order_tool
-from prompts.style_config import StyleConfig
+from src.prompts.style_config import StyleConfig
+from src.prompts.examples import get_few_shots
 
 
 # Создаём класс для CLI-бота
 class CliBot():
     def __init__(self,
                  model_name: str,
-                 api_key: str,                 
+                 api_key: str,
                  person: StyleConfig,
                  faq_file: str = './data/faq.json',
+                 examples_file: str = './data/few_shots_alex.jsonl',
 
 ):
         self.chat_model = ChatOpenAI(
@@ -37,19 +38,25 @@ class CliBot():
             base_url="https://openrouter.ai/api/v1",
             api_key=api_key,
             timeout=15,
-        )        
+        )
                     
         self.checkpointer = InMemorySaver()
+
+        # Load examples using get_few_shots method
+        examples_file = f"./data/few_shots_{person.person_name}.jsonl"
+        self.few_shots_examples = get_few_shots(examples_file)
+
         self.agent = self._create_agent(person, faq_file)
 
     def _create_agent(self, person: StyleConfig, faq_file: str):
 
         # Load FAQ data
         faq_data = self._load_faq(faq_file)
+        
         # Generate person system prompt addition
         person_prompt = person.get_system_prompt_addition()
         
-        system_prompt: str = f"""                
+        system_prompt: str = f"""
         {person_prompt}
 
 Отвечай на вопросы клиентов, используя информацию из базы данных магазина.
@@ -61,7 +68,8 @@ class CliBot():
 
 Когда клиент спрашивает о статусе заказа либо вводит команду "/order order_id" (например, "/order 12345"),
 используй инструмент для поиска информации о заказе.
-"""
+
+"""        
         
         return create_agent(
             model=self.chat_model,
@@ -128,10 +136,17 @@ class CliBot():
                 continue
 
             try:
+                examples = self.few_shots_examples.format(input=user_text)
                 print("Sending request to API...")
+                
                 start_time = time.time()
                 response = self.agent.invoke(
-                    {"messages": [{"role": "user", "content": user_text}]},
+                    {
+                        "messages": [                            
+                            {"role": "system", "content": examples},
+                            {"role": "user", "content": user_text}
+                        ]
+                    },
                     config={"configurable": {"thread_id": session_id}}
                 )
                 end_time = time.time()
@@ -140,6 +155,7 @@ class CliBot():
 
                 token_usage = self._extract_token_usage(response)
                 extra = {'token_usage': token_usage} if token_usage else {}
+                
                 logging.info(f"Bot: {bot_reply}", extra=extra)
                                 
                 print(f"Response time: {end_time - start_time:.2f} seconds")
