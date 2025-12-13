@@ -3,16 +3,17 @@ import os
 import logging
 import json
 import datetime
+from pathlib import Path
 
 from dotenv import load_dotenv
 
 from src.bot import CliBot
 from src.orders_db import load_orders
 from src.prompts.style_config import StyleConfig
+from src.style_eval import BotEvaluator
 
 
 load_dotenv()
-
 
 class JsonFormatter(logging.Formatter):
     def format(self, record):
@@ -58,11 +59,32 @@ if __name__ == "__main__":
         person=person,
     )
 
-    mode = os.getenv("MODE", "evaluate")
+    mode = os.getenv("MODE", "bot")
     
     if mode == "evaluate":
-        from src.style_eval import 
-        eval_batch()
+        evaluation_model_name = os.getenv("EVALUATION_MODEL", "gpt-4o-mini")
+
+        bot.set_silent_mode(True)
+
+        reports_dir = Path("reports")
+        reports_dir.mkdir(exist_ok=True)        
+
+        evaluator = BotEvaluator(
+            model_name=evaluation_model_name,
+            api_key=api_key,
+            person=person,
+            reports_dir=reports_dir,
+            bot=bot,
+        )
+
+        data_dir = Path("data")
+        eval_prompts = (data_dir / "eval_prompts.txt").read_text(encoding="utf-8").strip().splitlines()
+        
+        report = evaluator.eval_batch(eval_prompts)
+        
+        print("Средний балл:", report["mean_final"])
+        print("Отчёт:", reports_dir / "style_eval.json")
+                    
     else:
         logging.info("=== New session ===")
         bot("user_123")

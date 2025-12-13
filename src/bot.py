@@ -6,7 +6,6 @@ from venv import logger
 
 
 from langchain.agents import create_agent
-from langchain_core.output_parsers import PydanticOutputParser
 from langchain_openai import ChatOpenAI
 from langgraph.checkpoint.memory import InMemorySaver
 from openai import (
@@ -40,6 +39,7 @@ class CliBot():
                  person: StyleConfig,
                  faq_file: str = './data/faq.json',
                  examples_file: str = './data/few_shots_alex.jsonl',
+                 silent: bool = False,
 
 ):
         self.chat_model = ChatOpenAI(
@@ -50,6 +50,7 @@ class CliBot():
             timeout=15,
         )
                     
+        self.silent = silent
         self.checkpointer = InMemorySaver()
 
         # Load examples using get_few_shots method
@@ -57,6 +58,15 @@ class CliBot():
         self.few_shots_examples = get_few_shots(examples_file)
 
         self.agent = self._create_agent(person, faq_file)
+
+    def set_silent_mode(self, silent: bool) -> None:
+        """Switch silent mode"""
+        self.silent = silent
+
+    def say(self, txt: str) -> None:
+        """Output text if silent mode is False"""
+        if not self.silent:
+            print(txt)
 
     def _create_agent(self, person: StyleConfig, faq_file: str):
 
@@ -90,7 +100,7 @@ class CliBot():
             response_format=StructuredAnswer,            
         )
 
-    def _get_new_session_id(self, user_id: str) -> str:
+    def get_new_session_id(self, user_id: str) -> str:
         return f"{user_id}_{int(time.time())}"
     
 
@@ -108,13 +118,13 @@ class CliBot():
             
             return formatted
         except FileNotFoundError:
-            print(f"Предупреждение: FAQ файл не найден по пути {file_path}")
+            self.say(f"Предупреждение: FAQ файл не найден по пути {file_path}")
             return "FAQ данные недоступны."
         except json.JSONDecodeError:
-            print(f"Предупреждение: Неверный формат JSON в {file_path}")
+            self.say(f"Предупреждение: Неверный формат JSON в {file_path}")
             return "FAQ данные повреждены."
         except Exception as e:
-            print(f"Ошибка при загрузке FAQ: {e}")
+            self.say(f"Ошибка при загрузке FAQ: {e}")
             return "FAQ данные недоступны."
         
     def _extract_token_usage(self, response: dict) -> Any:
@@ -124,13 +134,13 @@ class CliBot():
             return last_msg.response_metadata.get('token_usage').get('total_tokens')
         return None
 
-    def __call__(self, user_id: str):
-        session_id = self._get_new_session_id(user_id)
+    def __call__(self, user_id: str) -> None:
+        session_id = self.get_new_session_id(user_id)
         while True:
             try:
                 user_text = input("Вы: ").strip()
             except (KeyboardInterrupt, EOFError):
-                print("\nБот: Завершение работы.")
+                self.say("\nБот: Завершение работы.")
                 break
             if not user_text:
                 continue
@@ -139,48 +149,58 @@ class CliBot():
 
             msg = user_text.lower()
             if msg in ("выход", "стоп", "конец"):
-                print("Бот: До свидания!")
+                self.say("Бот: До свидания!")
                 break
             if msg == "сброс":
                 self.checkpointer.delete_thread(session_id)
-                session_id = self._get_new_session_id(user_id)
-                print("Бот: Контекст диалога очищен.")
+                session_id = self.get_new_session_id(user_id)
+                self.say("Бот: Контекст диалога очищен.")
                 continue
 
-            try:
-                examples = self.few_shots_examples.format(input=user_text)
-                print("Sending request to API...")
+            try:                
                 
-                start_time = time.time()
-                response = self.agent.invoke(
-                    {
-                        "messages": [                            
-                            {"role": "system", "content": examples},
-                            {"role": "user", "content": user_text}
-                        ]
-                    },
-                    config={"configurable": {"thread_id": session_id}}
-                )
-                end_time = time.time()
-
-                bot_reply: StructuredAnswer = response["structured_response"]
-
-                token_usage = self._extract_token_usage(response)
-                extra = {'token_usage': token_usage} if token_usage else {}
+                bot_reply, token_usage = self.ask(user_text, session_id)
                 
+                extra = {'token_usage': token_usage} if token_usage else {}                
                 logging.info(f"Bot: {bot_reply.model_dump_json(indent=2)}", extra=extra)
-                                
-                print(f"Response time: {end_time - start_time:.2f} seconds")
-                print('Бот:', bot_reply, "\n")
+                                                
+                self.say('Бот: ' + str(bot_reply) + "\n")
+                
             except APITimeoutError as e:
-                print("Бот: [Ошибка] Превышено время ожидания ответа.")
+                self.say("Бот: [Ошибка] Превышено время ожидания ответа.")
                 continue
             except APIConnectionError as e:
-                print("Бот: [Ошибка] Не удалось подключиться к сервису LLM.")
+                self.say("Бот: [Ошибка] Не удалось подключиться к сервису LLM.")
                 continue
             except AuthenticationError as e:
-                print("Бот: [Ошибка] Проблема с API‑ключом (неавторизовано).")
+                self.say("Бот: [Ошибка] Проблема с API‑ключом (неавторизовано).")
                 break
             except Exception as e:
-                print(f"Бот: [Неизвестная ошибка] {e}")
+                self.say(f"Бот: [Неизвестная ошибка] {e}")
                 continue
+
+        
+    def ask(self, user_text: str, session_id: str) -> tuple[StructuredAnswer, int]:
+        examples = self.few_shots_examples.format(input=user_text)                
+                
+        self.say("Sending request to API...")
+        start_time = time.time()
+
+        response = self.agent.invoke(
+            {
+                "messages": [                            
+                    {"role": "system", "content": examples},
+                    {"role": "user", "content": user_text}
+                ]
+            },
+            config={"configurable": {"thread_id": session_id}}
+        )
+
+        end_time = time.time()
+        token_usage = self._extract_token_usage(response)
+
+        self.say(f"Response time: {end_time - start_time:.2f} seconds, tokens: {token_usage}")
+
+        bot_reply: StructuredAnswer = response["structured_response"]
+
+        return bot_reply, token_usage

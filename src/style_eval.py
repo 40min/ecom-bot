@@ -8,8 +8,9 @@ from dotenv import load_dotenv
 from pydantic import BaseModel, Field
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
+from requests import session
 
-from src.bot import CliBot
+from src.bot import CliBot, StructuredAnswer
 from src.prompts.style_config import StyleConfig
 
 
@@ -31,6 +32,7 @@ class BotEvaluator():
     ):
         self.style = person
         self.reports_dir = reports_dir
+        self.bot = bot
 
         self.llm = ChatOpenAI(
             model=model_name,
@@ -64,14 +66,16 @@ class BotEvaluator():
         parser = self.llm.with_structured_output(Grade)
         return (self.grade_prompt | parser).invoke({"answer": text}) # type: ignore
     
-    def ask(self, prompt: str) -> StructuredAnswer:
-        return self.bot.ask(prompt)
+    def ask_bot(self, prompt: str) -> StructuredAnswer:
+        session_id = self.bot.get_new_session_id(user_id="style_eval")
+        bot_reply, _ = self.bot.ask(user_text=prompt, session_id=session_id)
+        return bot_reply
 
 
     def eval_batch(self, prompts: list[str]) -> dict:
         results = []
         for prompt in prompts:
-            reply = ask(prompt)
+            reply = self.ask_bot(prompt)
             static_rule_score = self.rule_checks(reply.answer)
             llm_score = self.llm_grade(reply.answer)
             final = int(0.4 * static_rule_score + 0.6 * llm_score.score)
