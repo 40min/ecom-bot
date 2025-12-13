@@ -90,19 +90,28 @@ class BotEvaluator:
             final = int(0.4 * static_rule_score + 0.6 * llm_score.score)
             results.append(
                 {
-                    "prompt": prompt,
-                    "answer": reply.answer,
-                    "actions": reply.actions,
-                    "tone_model": reply.tone,
+                    "user": prompt,
+                    "assistant.answer": reply.answer,
+                    "assistant.actions": reply.actions,
+                    "assistant.tone": reply.tone,
                     "rule_score": static_rule_score,
                     "llm_score": llm_score.score,
-                    "final": final,
-                    "notes": llm_score.notes,
+                    "llm_notes": llm_score.notes,
+                    "final": final,                    
                 }
             )
 
         mean_final = round(mean(r["final"] for r in results), 2)
-        out = {"mean_final": mean_final, "items": results}
+        out = {
+            "summary": {
+                "mean_final": mean_final,
+                "mean_rule_score": round(mean(r["rule_score"] for r in results), 2),
+                "mean_llm_score": round(mean(r["llm_score"] for r in results), 2),
+                "total_cases": len(results),
+                "violations (final < 80)": len([r for r in results if r["final"] < 80])
+            },            
+            "cases": results,
+        }
         (self.reports_dir / "style_eval.json").write_text(
             json.dumps(out, ensure_ascii=False, indent=2), encoding="utf-8"
         )
