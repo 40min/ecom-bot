@@ -10,15 +10,23 @@ from pydantic import BaseModel, Field
 
 class PersonDetails(BaseModel):
     """Pydantic model for individual person configuration."""
+
     name: str = Field(..., description="Character name")
     person: str = Field(..., description="Character description")
-    avoid: List[str] = Field(default_factory=list, description="Things to avoid in responses")
-    must_include: List[str] = Field(default_factory=list, description="Required elements in responses")
-    fallback: Dict[str, str] = Field(default_factory=dict, description="Fallback responses for edge cases")
+    avoid: List[str] = Field(
+        default_factory=list, description="Things to avoid in responses"
+    )
+    must_include: List[str] = Field(
+        default_factory=list, description="Required elements in responses"
+    )
+    fallback: Dict[str, str] = Field(
+        default_factory=dict, description="Fallback responses for edge cases"
+    )
 
 
 class ToneConfig(BaseModel):
     """Pydantic model for tone configuration."""
+
     persons: Dict[str, PersonDetails] = Field(..., description="All available personas")
     sentences_max: int = Field(default=3, description="Maximum sentences per response")
     bullets: bool = Field(default=True, description="Whether to use bullet points")
@@ -26,6 +34,7 @@ class ToneConfig(BaseModel):
 
 class StyleGuide(BaseModel):
     """Root model for the complete style guide configuration."""
+
     brand: str = Field(..., description="Brand name")
     tone: ToneConfig = Field(..., description="Tone configuration")
 
@@ -36,7 +45,7 @@ class StyleConfig:
     def __init__(self, config: StyleGuide, person_name: str):
         """
         Initialize Person with loaded configuration.
-        
+
         Args:
             config: Validated StyleGuide configuration
             persona_name: Name of the person to use (e.g., 'alex', 'pahom')
@@ -45,24 +54,26 @@ class StyleConfig:
         self.person_name = person_name
 
     @classmethod
-    def load(cls, person_name: str, yaml_path: str = './data/style_guide.yaml') -> 'StyleConfig':
+    def load(
+        cls, person_name: str, yaml_path: str = "./data/style_guide.yaml"
+    ) -> "StyleConfig":
         """
         Load style configuration from YAML file.
-        
+
         Args:
             person_name: Name of the person to load (e.g., 'alex', 'pahom')
             yaml_path: Path to the YAML configuration file
-            
+
         Returns:
             StyleConfig: Configured StyleConfig object
-            
+
         Raises:
             FileNotFoundError: If YAML file doesn't exist
             yaml.YAMLError: If YAML file has invalid format
             ValueError: If persona_name is not found in configuration
         """
         try:
-            with open(yaml_path, 'r', encoding='utf-8') as file:
+            with open(yaml_path, "r", encoding="utf-8") as file:
                 yaml_data = yaml.safe_load(file)
         except FileNotFoundError:
             raise FileNotFoundError(f"YAML configuration file not found: {yaml_path}")
@@ -88,7 +99,7 @@ class StyleConfig:
     def get_system_prompt_addition(self) -> str:
         """
         Generate system prompt section with person details.
-        
+
         Returns:
             str: Formatted system prompt addition with person rules
         """
@@ -102,7 +113,9 @@ class StyleConfig:
         must_include_list = "\n".join([f"  - {item}" for item in person.must_include])
 
         # Build fallback response
-        fallback_response = person.fallback.get('no_data', 'Извините, у меня нет информации по этому вопросу.')
+        fallback_response = person.fallback.get(
+            "no_data", "Извините, у меня нет информации по этому вопросу."
+        )
 
         prompt_addition = f"""
 Ты {person.name} полезный сотрудник интернет-магазина {self.brand}.

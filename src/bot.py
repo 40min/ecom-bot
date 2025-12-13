@@ -16,26 +16,33 @@ from src.prompts.style_config import StyleConfig
 
 logger = logging.getLogger(__name__)
 
+
 class StructuredAnswer(BaseModel):
     answer: str = Field(description="Основная фраза-ответ на вопрос клиента")
-    actions: list[str] = Field(description="Пошаговое описание процесса или дополнительные пояснения", default=[])
-    tone: str = Field(description="Самоконтроль соответствия тона общения, не нарушается ли тон общения и ограничения, не выходит ли за рамки заданного стиля", default="")
+    actions: list[str] = Field(
+        description="Пошаговое описание процесса или дополнительные пояснения",
+        default=[],
+    )
+    tone: str = Field(
+        description="Самоконтроль соответствия тона общения, не нарушается ли тон общения и ограничения, не выходит ли за рамки заданного стиля",
+        default="",
+    )
 
     def __str__(self):
         return self.answer + "\n" + "\n".join(self.actions)
 
 
 # Создаём класс для CLI-бота
-class CliBot():
-    def __init__(self,
-                 model_name: str,
-                 api_key: str,
-                 person: StyleConfig,
-                 faq_file: str = './data/faq.json',
-                 examples_file: str = './data/few_shots_alex.jsonl',
-                 silent: bool = False,
-
-):
+class CliBot:
+    def __init__(
+        self,
+        model_name: str,
+        api_key: str,
+        person: StyleConfig,
+        faq_file: str = "./data/faq.json",
+        examples_file: str = "./data/few_shots_alex.jsonl",
+        silent: bool = False,
+    ):
         self.chat_model = ChatOpenAI(
             model=model_name,
             temperature=0.3,
@@ -52,7 +59,6 @@ class CliBot():
         self.few_shots_examples = get_few_shots(examples_file)
 
         self.agent = self._create_agent(person, faq_file)
-
 
     def say(self, txt: str) -> None:
         """Output text if silent mode is False"""
@@ -94,18 +100,16 @@ class CliBot():
     def get_new_session_id(self, user_id: str) -> str:
         return f"{user_id}_{int(time.time())}"
 
-
     def _load_faq(self, file_path: str) -> str:
         """Load and format FAQ data from JSON file"""
         try:
-            with open(file_path, 'r', encoding='utf-8') as f:
+            with open(file_path, "r", encoding="utf-8") as f:
                 faq = json.load(f)
 
             # Format FAQ as text
-            formatted = "\n\n".join([
-                f"Вопрос: {item['q']}\nОтвет: {item['a']}"
-                for item in faq
-            ])
+            formatted = "\n\n".join(
+                [f"Вопрос: {item['q']}\nОтвет: {item['a']}" for item in faq]
+            )
 
             return formatted
         except FileNotFoundError:
@@ -120,9 +124,9 @@ class CliBot():
 
     def _extract_token_usage(self, response: dict) -> Any:
         """Extract token usage information from the response."""
-        last_msg = response['messages'][-1]
-        if hasattr(last_msg, 'response_metadata'):
-            return last_msg.response_metadata.get('token_usage').get('total_tokens')
+        last_msg = response["messages"][-1]
+        if hasattr(last_msg, "response_metadata"):
+            return last_msg.response_metadata.get("token_usage").get("total_tokens")
         return None
 
     def __call__(self, user_id: str) -> None:
@@ -152,10 +156,10 @@ class CliBot():
 
                 bot_reply, token_usage = self.ask(user_text, session_id)
 
-                extra = {'token_usage': token_usage} if token_usage else {}
+                extra = {"token_usage": token_usage} if token_usage else {}
                 logging.info(f"Bot: {bot_reply.model_dump_json(indent=2)}", extra=extra)
 
-                self.say('Бот: ' + str(bot_reply) + "\n")
+                self.say("Бот: " + str(bot_reply) + "\n")
 
             except APITimeoutError:
                 self.say("Бот: [Ошибка] Превышено время ожидания ответа.")
@@ -170,7 +174,6 @@ class CliBot():
                 self.say(f"Бот: [Неизвестная ошибка] {e}")
                 continue
 
-
     def ask(self, user_text: str, session_id: str) -> tuple[StructuredAnswer, int]:
         examples = self.few_shots_examples.format(input=user_text)
 
@@ -181,16 +184,18 @@ class CliBot():
             {
                 "messages": [
                     {"role": "system", "content": examples},
-                    {"role": "user", "content": user_text}
+                    {"role": "user", "content": user_text},
                 ]
             },
-            config={"configurable": {"thread_id": session_id}}
+            config={"configurable": {"thread_id": session_id}},
         )
 
         end_time = time.time()
         token_usage = self._extract_token_usage(response)
 
-        self.say(f"Response time: {end_time - start_time:.2f} seconds, tokens: {token_usage}")
+        self.say(
+            f"Response time: {end_time - start_time:.2f} seconds, tokens: {token_usage}"
+        )
 
         bot_reply: StructuredAnswer = response["structured_response"]
 

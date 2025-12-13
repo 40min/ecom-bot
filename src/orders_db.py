@@ -9,18 +9,19 @@ logger = logging.getLogger(__name__)
 # Global variable to store orders data
 _orders_data: Dict[str, Any] = {}
 
-def load_orders(file_path: str = './data/orders.json') -> Dict[str, Any]:
+
+def load_orders(file_path: str = "./data/orders.json") -> Dict[str, Any]:
     """Load orders data from JSON file.
-    
+
     Args:
         file_path: Path to the orders JSON file
-        
+
     Returns:
         Dictionary containing orders data
     """
     global _orders_data
     try:
-        with open(file_path, 'r', encoding='utf-8') as f:
+        with open(file_path, "r", encoding="utf-8") as f:
             _orders_data = json.load(f)
         logger.info(f"Orders data loaded successfully from {file_path}")
         return _orders_data
@@ -37,6 +38,7 @@ def load_orders(file_path: str = './data/orders.json') -> Dict[str, Any]:
         _orders_data = {}
         return {}
 
+
 @tool
 def lookup_order_tool(order_id: str) -> str:
     """Lookup order status by order ID.
@@ -45,7 +47,7 @@ def lookup_order_tool(order_id: str) -> str:
 
     Args:
         order_id: The order ID to lookup
-        
+
     Returns:
         Formatted string with order status information
     """
@@ -54,24 +56,25 @@ def lookup_order_tool(order_id: str) -> str:
 
     if order_id in _orders_data:
         order = _orders_data[order_id]
-        status = order['status']
+        status = order["status"]
 
-        if status == 'in_transit':
+        if status == "in_transit":
             eta = f"Ожидается через {order['eta_days']} дней. Перевозчик: {order['carrier']}"
             return f"Заказ {order_id} в пути. {eta}"
-        elif status == 'delivered':
+        elif status == "delivered":
             return f"Заказ {order_id} доставлен {order['delivered_at']}"
-        elif status == 'processing':
-            note = order.get('note', '')
+        elif status == "processing":
+            note = order.get("note", "")
             return f"Заказ {order_id} обрабатывается. {note}"
         else:
             return f"Заказ {order_id} имеет статус: {status}"
     else:
         return f"Заказ {order_id} не найден."
 
+
 def get_orders_data() -> Dict[str, Any]:
     """Get the loaded orders data.
-    
+
     Returns:
         Dictionary containing orders data
     """

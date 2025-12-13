@@ -1,4 +1,3 @@
-
 import json
 import re
 from pathlib import Path
@@ -14,12 +13,14 @@ from src.prompts.style_config import StyleConfig
 
 load_dotenv()
 
+
 # LLM-оценка
 class Grade(BaseModel):
     score: int = Field(..., ge=0, le=100)
     notes: str
 
-class BotEvaluator():
+
+class BotEvaluator:
     def __init__(
         self,
         model_name: str,
@@ -40,12 +41,23 @@ class BotEvaluator():
             timeout=15,
         )
 
-        self.grade_prompt = ChatPromptTemplate.from_messages([
-            ("system", f"Ты — строгий ревьюер соответствия голосу бренда {self.style.brand}"),
-            ("system", f"Тон: {self.style.current_person_description}. Избегай: {', '.join(self.style.current_person_avoid)}. "
-                       f"Обязательно: {', '.join(self.style.current_person_must_include)}."),
-            ("human", "Ответ ассистента:\n{answer}\n\nДай целочисленный score 0..100 и краткие заметки почему.")
-        ])
+        self.grade_prompt = ChatPromptTemplate.from_messages(
+            [
+                (
+                    "system",
+                    f"Ты — строгий ревьюер соответствия голосу бренда {self.style.brand}",
+                ),
+                (
+                    "system",
+                    f"Тон: {self.style.current_person_description}. Избегай: {', '.join(self.style.current_person_avoid)}. "
+                    f"Обязательно: {', '.join(self.style.current_person_must_include)}.",
+                ),
+                (
+                    "human",
+                    "Ответ ассистента:\n{answer}\n\nДай целочисленный score 0..100 и краткие заметки почему.",
+                ),
+            ]
+        )
 
     def rule_checks(self, text: str) -> int:
         score = 100
@@ -62,13 +74,12 @@ class BotEvaluator():
 
     def llm_grade(self, text: str) -> Grade:
         parser = self.llm.with_structured_output(Grade)
-        return (self.grade_prompt | parser).invoke({"answer": text}) # type: ignore
+        return (self.grade_prompt | parser).invoke({"answer": text})  # type: ignore
 
     def ask_bot(self, prompt: str) -> StructuredAnswer:
         session_id = self.bot.get_new_session_id(user_id="style_eval")
         bot_reply, _ = self.bot.ask(user_text=prompt, session_id=session_id)
         return bot_reply
-
 
     def eval_batch(self, prompts: list[str]) -> dict:
         results = []
@@ -77,19 +88,23 @@ class BotEvaluator():
             static_rule_score = self.rule_checks(reply.answer)
             llm_score = self.llm_grade(reply.answer)
             final = int(0.4 * static_rule_score + 0.6 * llm_score.score)
-            results.append({
-                "prompt": prompt,
-                "answer": reply.answer,
-                "actions": reply.actions,
-                "tone_model": reply.tone,
-                "rule_score": static_rule_score,
-                "llm_score": llm_score.score,
-                "final": final,
-                "notes": llm_score.notes
-            })
+            results.append(
+                {
+                    "prompt": prompt,
+                    "answer": reply.answer,
+                    "actions": reply.actions,
+                    "tone_model": reply.tone,
+                    "rule_score": static_rule_score,
+                    "llm_score": llm_score.score,
+                    "final": final,
+                    "notes": llm_score.notes,
+                }
+            )
 
         mean_final = round(mean(r["final"] for r in results), 2)
         out = {"mean_final": mean_final, "items": results}
-        (self.reports_dir / "style_eval.json").write_text(json.dumps(out, ensure_ascii=False, indent=2), encoding="utf-8")
+        (self.reports_dir / "style_eval.json").write_text(
+            json.dumps(out, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
 
         return out
