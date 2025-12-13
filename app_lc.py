@@ -106,8 +106,40 @@ def evaluate(eval_model):
 
     report = evaluator.eval_batch(eval_prompts)
 
-    print("Средний балл:", report["mean_final"])
-    print("Отчёт:", reports_dir / "style_eval.json")
+    summary = report["summary"]
+    
+    print("=" * 50)
+    print("ОЦЕНКА СТИЛЯ - СВОДКА")
+    print("=" * 50)
+    print(f"📊 Общий средний балл: {summary['mean_final']:.2f}/100")
+    print(f"📈 Процент прохождения: {summary['pass_rate']:.2f}%")
+    print(f"✅ Успешные оценки: {summary['successful_evaluations']}/{summary['total_cases']}")
+    print(f"❌ Неудачные оценки: {summary['failed_evaluations']}")
+    
+    print("\n📋 ДЕТАЛЬНЫЕ МЕТРИКИ:")
+    print(f"  • Правила (rule-based): {summary['mean_rule_score']:.2f}")
+    print(f"  • ИИ оценка (LLM-based): {summary['mean_llm_score']:.2f}")
+    print(f"  • Стандартное отклонение: {summary['std_final']:.2f}")
+    
+    print(f"\n📊 РАСПРЕДЕЛЕНИЕ ОЦЕНОК:")
+    print(f"  • Минимум: {summary['min_final']}")
+    print(f"  • 25-й перцентиль: {summary['p25_final']}")
+    print(f"  • Медиана: {summary['median_final']}")
+    print(f"  • 75-й перцентиль: {summary['p75_final']}")
+    print(f"  • 95-й перцентиль: {summary['p95_final']}")
+    print(f"  • Максимум: {summary['max_final']}")
+    
+    if summary.get('violations_count', 0) > 0:
+        print(f"\n⚠️  НАРУШЕНИЯ ПРАВИЛ:")
+        print(f"  • Всего нарушений: {summary['violations_count']}")
+        common_violations = summary.get('common_violations', {})
+        if common_violations:
+            for violation, count in list(common_violations.items())[:5]:
+                print(f"  • {violation}: {count} раз(а)")
+    
+    print(f"\n📄 Полный отчёт сохранён: {reports_dir / 'style_eval.json'}")
+    print(f"📋 Краткая сводка: {reports_dir / 'style_eval_summary.json'}")
+    print("=" * 50)
 
 
 if __name__ == "__main__":
