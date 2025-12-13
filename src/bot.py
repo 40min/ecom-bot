@@ -5,21 +5,31 @@ from typing import Any
 from venv import logger
 
 
-from langchain_openai import ChatOpenAI
 from langchain.agents import create_agent
+from langchain_core.output_parsers import PydanticOutputParser
+from langchain_openai import ChatOpenAI
 from langgraph.checkpoint.memory import InMemorySaver
 from openai import (
     APITimeoutError,
     APIConnectionError,
     AuthenticationError
 )
-from langchain_core.prompts import PromptTemplate, FewShotPromptTemplate
-
-logger = logging.getLogger(__name__)
+from pydantic import BaseModel, Field
 
 from src.orders_db import lookup_order_tool
 from src.prompts.style_config import StyleConfig
 from src.prompts.examples import get_few_shots
+
+
+logger = logging.getLogger(__name__)
+
+class StructuredAnswer(BaseModel):
+    answer: str = Field(description="Основная фраза-ответ на вопрос клиента")
+    actions: list[str] = Field(description="Пошаговое описание процесса или дополнительные пояснения", default=[])
+    tone: str = Field(description="Самоконтроль соответствия тона общения, не нарушается ли тон общения и ограничения, не выходит ли за рамки заданного стиля", default="")
+
+    def __str__(self):
+        return self.answer + "\n" + "\n".join(self.actions)
 
 
 # Создаём класс для CLI-бота
@@ -54,7 +64,7 @@ class CliBot():
         faq_data = self._load_faq(faq_file)
         
         # Generate person system prompt addition
-        person_prompt = person.get_system_prompt_addition()
+        person_prompt = person.get_system_prompt_addition()    
         
         system_prompt: str = f"""
         {person_prompt}
@@ -62,9 +72,10 @@ class CliBot():
 Отвечай на вопросы клиентов, используя информацию из базы данных магазина.
 База знаний (FAQ):
 {faq_data}
-
 Используй эту информацию для ответов на типичные вопросы клиентов.
 Если вопрос не покрывается FAQ, отвечай на основе общих знаний о работе интернет-магазинов.
+Ответ должен содержать основную фразу (answer) и пошаговое описание процесса или дополнительные пояснения (actions).
+Также оцени свой ответ: не нарушается ли тон общения и ограничения, не выходит ли за рамки заданного стиля.
 
 Когда клиент спрашивает о статусе заказа либо вводит команду "/order order_id" (например, "/order 12345"),
 используй инструмент для поиска информации о заказе.
@@ -76,6 +87,7 @@ class CliBot():
             tools=[lookup_order_tool],
             system_prompt=system_prompt,
             checkpointer=self.checkpointer,
+            response_format=StructuredAnswer,            
         )
 
     def _get_new_session_id(self, user_id: str) -> str:
@@ -151,12 +163,12 @@ class CliBot():
                 )
                 end_time = time.time()
 
-                bot_reply = response['messages'][-1].content
+                bot_reply: StructuredAnswer = response["structured_response"]
 
                 token_usage = self._extract_token_usage(response)
                 extra = {'token_usage': token_usage} if token_usage else {}
                 
-                logging.info(f"Bot: {bot_reply}", extra=extra)
+                logging.info(f"Bot: {bot_reply.model_dump_json(indent=2)}", extra=extra)
                                 
                 print(f"Response time: {end_time - start_time:.2f} seconds")
                 print('Бот:', bot_reply, "\n")

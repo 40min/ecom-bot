@@ -46,17 +46,23 @@ if __name__ == "__main__":
         raise ValueError("OPENAI_API_KEY is not set")
     person_name = os.getenv("PERSON_NAME", "alex")
 
-    # Load orders data
-    load_orders()
-    
     # Load person configuration
     person = StyleConfig.load(person_name, './data/style_guide.yaml')
-    
+
+    # Load orders data
+    load_orders()
+
     bot = CliBot(
         model_name = model_name,
         api_key=api_key,        
         person=person,
     )
 
-    logging.info("=== New session ===")
-    bot("user_123")
+    mode = os.getenv("MODE", "evaluate")
+    
+    if mode == "evaluate":
+        from src.style_eval import 
+        eval_batch()
+    else:
+        logging.info("=== New session ===")
+        bot("user_123")

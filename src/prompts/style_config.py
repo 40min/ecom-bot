@@ -133,3 +133,22 @@ class StyleConfig:
     def available_persons(self) -> List[str]:
         """Get list of all available person names."""
         return list(self.config.tone.persons.keys())
+    
+    @property
+    def current_person_description(self) -> str:
+        """Get current person tone from configuration."""
+        person = self.config.tone.persons[self.person_name]
+        return person.person
+    
+    @property
+    def current_person_avoid(self) -> List[str]:
+        """Get current person avoid list from configuration."""
+
+        person = self.config.tone.persons[self.person_name]
+        return person.avoid
+    
+    @property
+    def current_person_must_include(self) -> List[str]:
+        """Get current person must include list from configuration."""
+        person = self.config.tone.persons[self.person_name]
+        return person.must_include

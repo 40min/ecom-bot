@@ -1,0 +1,93 @@
+
+import json
+from pathlib import Path
+from statistics import mean
+import re
+
+from dotenv import load_dotenv
+from pydantic import BaseModel, Field
+from langchain_openai import ChatOpenAI
+from langchain_core.prompts import ChatPromptTemplate
+
+from src.bot import CliBot
+from src.prompts.style_config import StyleConfig
+
+
+load_dotenv()
+
+# LLM-оценка
+class Grade(BaseModel):
+    score: int = Field(..., ge=0, le=100)
+    notes: str
+
+class BotEvaluator():
+    def __init__(
+        self, 
+        model_name: str, 
+        api_key: str, 
+        person: StyleConfig,
+        reports_dir: Path,
+        bot: CliBot,
+    ):
+        self.style = person
+        self.reports_dir = reports_dir
+
+        self.llm = ChatOpenAI(
+            model=model_name,
+            temperature=0.3,
+            base_url="https://openrouter.ai/api/v1",
+            api_key=api_key,
+            timeout=15,
+        )
+
+        self.grade_prompt = ChatPromptTemplate.from_messages([
+            ("system", f"Ты — строгий ревьюер соответствия голосу бренда {self.style.brand}"),
+            ("system", f"Тон: {self.style.current_person_description}. Избегай: {', '.join(self.style.current_person_avoid)}. "
+                       f"Обязательно: {', '.join(self.style.current_person_must_include)}."),
+            ("human", "Ответ ассистента:\n{answer}\n\nДай целочисленный score 0..100 и краткие заметки почему.")
+        ])
+
+    def rule_checks(self, text: str) -> int:
+        score = 100
+        # 1) Без эмодзи
+        if re.search(r"[\U0001F300-\U0001FAFF]", text):
+            score -= 20
+        # 2) Без крика!!!
+        if "!!!" in text:
+            score -= 10
+        # 3) Длина
+        if len(text) > 600:
+            score -= 10
+        return max(score, 0)
+
+    def llm_grade(self, text: str) -> Grade:
+        parser = self.llm.with_structured_output(Grade)
+        return (self.grade_prompt | parser).invoke({"answer": text}) # type: ignore
+    
+    def ask(self, prompt: str) -> StructuredAnswer:
+        return self.bot.ask(prompt)
+
+
+    def eval_batch(self, prompts: list[str]) -> dict:
+        results = []
+        for prompt in prompts:
+            reply = ask(prompt)
+            static_rule_score = self.rule_checks(reply.answer)
+            llm_score = self.llm_grade(reply.answer)
+            final = int(0.4 * static_rule_score + 0.6 * llm_score.score)
+            results.append({
+                "prompt": prompt,
+                "answer": reply.answer,
+                "actions": reply.actions,
+                "tone_model": reply.tone,
+                "rule_score": static_rule_score,
+                "llm_score": llm_score.score,
+                "final": final,
+                "notes": llm_score.notes
+            })
+                    
+        mean_final = round(mean(r["final"] for r in results), 2)
+        out = {"mean_final": mean_final, "items": results}
+        (self.reports_dir / "style_eval.json").write_text(json.dumps(out, ensure_ascii=False, indent=2), encoding="utf-8")
+        
+        return out
