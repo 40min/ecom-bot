@@ -1,18 +1,16 @@
 
 import json
+import re
 from pathlib import Path
 from statistics import mean
-import re
 
 from dotenv import load_dotenv
-from pydantic import BaseModel, Field
-from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
-from requests import session
+from langchain_openai import ChatOpenAI
+from pydantic import BaseModel, Field
 
 from src.bot import CliBot, StructuredAnswer
 from src.prompts.style_config import StyleConfig
-
 
 load_dotenv()
 
@@ -23,9 +21,9 @@ class Grade(BaseModel):
 
 class BotEvaluator():
     def __init__(
-        self, 
-        model_name: str, 
-        api_key: str, 
+        self,
+        model_name: str,
+        api_key: str,
         person: StyleConfig,
         reports_dir: Path,
         bot: CliBot,
@@ -65,7 +63,7 @@ class BotEvaluator():
     def llm_grade(self, text: str) -> Grade:
         parser = self.llm.with_structured_output(Grade)
         return (self.grade_prompt | parser).invoke({"answer": text}) # type: ignore
-    
+
     def ask_bot(self, prompt: str) -> StructuredAnswer:
         session_id = self.bot.get_new_session_id(user_id="style_eval")
         bot_reply, _ = self.bot.ask(user_text=prompt, session_id=session_id)
@@ -89,9 +87,9 @@ class BotEvaluator():
                 "final": final,
                 "notes": llm_score.notes
             })
-                    
+
         mean_final = round(mean(r["final"] for r in results), 2)
         out = {"mean_final": mean_final, "items": results}
         (self.reports_dir / "style_eval.json").write_text(json.dumps(out, ensure_ascii=False, indent=2), encoding="utf-8")
-        
+
         return out

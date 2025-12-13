@@ -1,6 +1,7 @@
 import json
 import logging
 from typing import Any, Dict
+
 from langchain.tools import tool
 
 logger = logging.getLogger(__name__)
@@ -50,7 +51,7 @@ def lookup_order_tool(order_id: str) -> str:
     """
     if not _orders_data:
         return "База данных заказов не загружена. Обратитесь к администратору."
-    
+
     if order_id in _orders_data:
         order = _orders_data[order_id]
         status = order['status']

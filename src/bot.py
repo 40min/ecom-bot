@@ -1,24 +1,18 @@
 import json
-import time
 import logging
+import time
 from typing import Any
 from venv import logger
-
 
 from langchain.agents import create_agent
 from langchain_openai import ChatOpenAI
 from langgraph.checkpoint.memory import InMemorySaver
-from openai import (
-    APITimeoutError,
-    APIConnectionError,
-    AuthenticationError
-)
+from openai import APIConnectionError, APITimeoutError, AuthenticationError
 from pydantic import BaseModel, Field
 
 from src.orders_db import lookup_order_tool
-from src.prompts.style_config import StyleConfig
 from src.prompts.examples import get_few_shots
-
+from src.prompts.style_config import StyleConfig
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +43,7 @@ class CliBot():
             api_key=api_key,
             timeout=15,
         )
-                    
+
         self.silent = silent
         self.checkpointer = InMemorySaver()
 
@@ -58,7 +52,7 @@ class CliBot():
         self.few_shots_examples = get_few_shots(examples_file)
 
         self.agent = self._create_agent(person, faq_file)
-    
+
 
     def say(self, txt: str) -> None:
         """Output text if silent mode is False"""
@@ -69,10 +63,10 @@ class CliBot():
 
         # Load FAQ data
         faq_data = self._load_faq(faq_file)
-        
+
         # Generate person system prompt addition
-        person_prompt = person.get_system_prompt_addition()    
-        
+        person_prompt = person.get_system_prompt_addition()
+
         system_prompt: str = f"""
         {person_prompt}
 
@@ -87,32 +81,32 @@ class CliBot():
 Когда клиент спрашивает о статусе заказа либо вводит команду "/order order_id" (например, "/order 12345"),
 используй инструмент для поиска информации о заказе.
 
-"""        
-        
+"""
+
         return create_agent(
             model=self.chat_model,
             tools=[lookup_order_tool],
             system_prompt=system_prompt,
             checkpointer=self.checkpointer,
-            response_format=StructuredAnswer,            
+            response_format=StructuredAnswer,
         )
 
     def get_new_session_id(self, user_id: str) -> str:
         return f"{user_id}_{int(time.time())}"
-    
+
 
     def _load_faq(self, file_path: str) -> str:
         """Load and format FAQ data from JSON file"""
         try:
             with open(file_path, 'r', encoding='utf-8') as f:
                 faq = json.load(f)
-            
+
             # Format FAQ as text
             formatted = "\n\n".join([
                 f"Вопрос: {item['q']}\nОтвет: {item['a']}"
                 for item in faq
             ])
-            
+
             return formatted
         except FileNotFoundError:
             self.say(f"Предупреждение: FAQ файл не найден по пути {file_path}")
@@ -123,7 +117,7 @@ class CliBot():
         except Exception as e:
             self.say(f"Ошибка при загрузке FAQ: {e}")
             return "FAQ данные недоступны."
-        
+
     def _extract_token_usage(self, response: dict) -> Any:
         """Extract token usage information from the response."""
         last_msg = response['messages'][-1]
@@ -154,38 +148,38 @@ class CliBot():
                 self.say("Бот: Контекст диалога очищен.")
                 continue
 
-            try:                
-                
+            try:
+
                 bot_reply, token_usage = self.ask(user_text, session_id)
-                
-                extra = {'token_usage': token_usage} if token_usage else {}                
+
+                extra = {'token_usage': token_usage} if token_usage else {}
                 logging.info(f"Bot: {bot_reply.model_dump_json(indent=2)}", extra=extra)
-                                                
+
                 self.say('Бот: ' + str(bot_reply) + "\n")
-                
-            except APITimeoutError as e:
+
+            except APITimeoutError:
                 self.say("Бот: [Ошибка] Превышено время ожидания ответа.")
                 continue
-            except APIConnectionError as e:
+            except APIConnectionError:
                 self.say("Бот: [Ошибка] Не удалось подключиться к сервису LLM.")
                 continue
-            except AuthenticationError as e:
+            except AuthenticationError:
                 self.say("Бот: [Ошибка] Проблема с API‑ключом (неавторизовано).")
                 break
             except Exception as e:
                 self.say(f"Бот: [Неизвестная ошибка] {e}")
                 continue
 
-        
+
     def ask(self, user_text: str, session_id: str) -> tuple[StructuredAnswer, int]:
-        examples = self.few_shots_examples.format(input=user_text)                
-                
+        examples = self.few_shots_examples.format(input=user_text)
+
         self.say("Sending request to API...")
         start_time = time.time()
 
         response = self.agent.invoke(
             {
-                "messages": [                            
+                "messages": [
                     {"role": "system", "content": examples},
                     {"role": "user", "content": user_text}
                 ]

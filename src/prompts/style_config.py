@@ -2,8 +2,9 @@
 Style configuration module for loading and managing bot personality configurations.
 """
 
-import yaml
 from typing import Dict, List
+
+import yaml
 from pydantic import BaseModel, Field
 
 
@@ -26,12 +27,12 @@ class ToneConfig(BaseModel):
 class StyleGuide(BaseModel):
     """Root model for the complete style guide configuration."""
     brand: str = Field(..., description="Brand name")
-    tone: ToneConfig = Field(..., description="Tone configuration")    
+    tone: ToneConfig = Field(..., description="Tone configuration")
 
 
 class StyleConfig:
     """Main interface class for person management."""
-    
+
     def __init__(self, config: StyleGuide, person_name: str):
         """
         Initialize Person with loaded configuration.
@@ -41,8 +42,8 @@ class StyleConfig:
             persona_name: Name of the person to use (e.g., 'alex', 'pahom')
         """
         self.config = config
-        self.person_name = person_name        
-    
+        self.person_name = person_name
+
     @classmethod
     def load(cls, person_name: str, yaml_path: str = './data/style_guide.yaml') -> 'StyleConfig':
         """
@@ -67,13 +68,13 @@ class StyleConfig:
             raise FileNotFoundError(f"YAML configuration file not found: {yaml_path}")
         except yaml.YAMLError as e:
             raise yaml.YAMLError(f"Invalid YAML format in {yaml_path}: {e}")
-        
+
         # Validate and parse with Pydantic
         try:
             config = StyleGuide(**yaml_data)
         except Exception as e:
             raise ValueError(f"Invalid configuration format: {e}")
-        
+
         # Validate person exists
         if person_name not in config.tone.persons:
             available_personas = list(config.tone.persons.keys())
@@ -81,9 +82,9 @@ class StyleConfig:
                 f"Person '{person_name}' not found. "
                 f"Available personas: {available_personas}"
             )
-        
+
         return cls(config, person_name)
-    
+
     def get_system_prompt_addition(self) -> str:
         """
         Generate system prompt section with person details.
@@ -92,17 +93,17 @@ class StyleConfig:
             str: Formatted system prompt addition with person rules
         """
         person = self.config.tone.persons[self.person_name]
-        tone_config = self.config.tone        
-        
+        tone_config = self.config.tone
+
         # Build avoid list
         avoid_list = "\n".join([f"  - {item}" for item in person.avoid])
-        
+
         # Build must_include list
         must_include_list = "\n".join([f"  - {item}" for item in person.must_include])
-        
+
         # Build fallback response
-        fallback_response = person.fallback.get('no_data', 'Извините, у меня нет информации по этому вопросу.')        
-        
+        fallback_response = person.fallback.get('no_data', 'Извините, у меня нет информации по этому вопросу.')
+
         prompt_addition = f"""
 Ты {person.name} полезный сотрудник интернет-магазина {self.brand}.
 Характер: {person.person}
@@ -121,32 +122,32 @@ class StyleConfig:
 При отсутствии данных: {fallback_response}
 
 """
-        
+
         return prompt_addition.strip()
-    
+
     @property
     def brand(self) -> str:
         """Get the brand name from configuration."""
         return self.config.brand
-    
+
     @property
     def available_persons(self) -> List[str]:
         """Get list of all available person names."""
         return list(self.config.tone.persons.keys())
-    
+
     @property
     def current_person_description(self) -> str:
         """Get current person tone from configuration."""
         person = self.config.tone.persons[self.person_name]
         return person.person
-    
+
     @property
     def current_person_avoid(self) -> List[str]:
         """Get current person avoid list from configuration."""
 
         person = self.config.tone.persons[self.person_name]
         return person.avoid
-    
+
     @property
     def current_person_must_include(self) -> List[str]:
         """Get current person must include list from configuration."""

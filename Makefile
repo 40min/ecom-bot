@@ -7,6 +7,7 @@ help:
 	@echo "=== Running the Application ==="
 	@echo "  run-bot        Run the bot in interactive mode"
 	@echo "  run-eval       Run the bot in evaluation mode"
+	@echo "  run-eval-custom Run evaluation with custom model (specify MODEL)"
 	@echo ""
 	@echo "=== Development Setup ==="
 	@echo "  install        Install project dependencies"
@@ -17,6 +18,7 @@ help:
 	@echo "=== Development Tools ==="
 	@echo "  test           Run tests"
 	@echo "  lint           Run linting (ruff)"
+	@echo "  lint-fix       Run linting and fix issues (ruff --fix)"
 	@echo "  format         Format code (black)"
 	@echo "  format-check   Check code formatting (black --check)"
 	@echo ""
@@ -118,6 +120,12 @@ lint:
 	@echo "🔍 Running linting..."
 	uv run ruff check .
 	@echo "✅ Linting complete"
+
+# Lint and fix issues
+lint-fix:
+	@echo "🔧 Fixing linting issues..."
+	uv run ruff check --fix .
+	@echo "✅ Linting fixes applied"
 
 # Format code
 format:
