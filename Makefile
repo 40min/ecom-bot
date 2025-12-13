@@ -28,6 +28,9 @@ help:
 	@echo ""
 	@echo "=== Utility ==="
 	@echo "  check-env      Check if environment is properly configured"
+	@echo "  status         Show project status"
+	@echo ""
+	
 
 # =============================================================================
 # APPLICATION RUNNING
@@ -216,21 +219,3 @@ check-deploy:
 	@make lint
 	@make test
 	@echo "✅ All checks passed - ready for deployment!"
-
-# Show useful information
-info:
-	@echo "📖 Project Information:"
-	@echo "Name: $$(grep '^name = ' pyproject.toml | cut -d'"' -f2)"
-	@echo "Version: $$(grep '^version = ' pyproject.toml | cut -d'"' -f2)"
-	@echo "Python: $$(grep 'requires-python' pyproject.toml | cut -d'=' -f2 | tr -d ' \"')"
-	@echo ""
-	@echo "📁 Key Files:"
-	@echo "  - app_lc.py: Main application entry point"
-	@echo "  - src/bot.py: Bot implementation"
-	@echo "  - src/style_eval.py: Evaluation system"
-	@echo "  - data/: Data files (FAQ, examples, etc.)"
-	@echo ""
-	@echo "🔧 Configuration:"
-	@echo "  - .env: Environment variables (copy from .env.example)"
-	@echo "  - logs/: Session logs"
-	@echo "  - reports/: Evaluation reports"
