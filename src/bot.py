@@ -58,10 +58,7 @@ class CliBot():
         self.few_shots_examples = get_few_shots(examples_file)
 
         self.agent = self._create_agent(person, faq_file)
-
-    def set_silent_mode(self, silent: bool) -> None:
-        """Switch silent mode"""
-        self.silent = silent
+    
 
     def say(self, txt: str) -> None:
         """Output text if silent mode is False"""
