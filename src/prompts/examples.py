@@ -1,4 +1,5 @@
 import json
+from functools import lru_cache
 
 from langchain_community.vectorstores import Chroma
 from langchain_core.example_selectors import SemanticSimilarityExampleSelector
@@ -14,6 +15,7 @@ class FewShotExamplesException(Exception):
     pass
 
 
+@lru_cache(maxsize=32)
 def get_few_shots(file_path: str) -> FewShotPromptTemplate:
     """Load examples from JSONL file and format them for few-shot prompting"""
 
