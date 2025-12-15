@@ -42,7 +42,7 @@ def get_common_config():
     model_name = os.getenv("OPENROUTER_API_MODEL", "gpt-4o-mini")
     api_key = os.getenv("OPENROUTER_API_KEY")
     if not api_key:
-        raise ValueError("OPENAI_API_KEY is not set")
+        raise ValueError("OPENROUTER_API_KEY is not set")
     person_name = os.getenv("PERSON_NAME", "alex")
 
     # Load person configuration

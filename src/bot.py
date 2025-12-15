@@ -2,7 +2,6 @@ import json
 import logging
 import time
 from typing import Any
-from venv import logger
 
 from langchain.agents import create_agent
 from langchain_openai import ChatOpenAI
@@ -39,8 +38,7 @@ class CliBot:
         model_name: str,
         api_key: str,
         person: StyleConfig,
-        faq_file: str = "./data/faq.json",
-        examples_file: str = "./data/few_shots_alex.jsonl",
+        faq_file: str = "./data/faq.json",        
         silent: bool = False,
     ):
         self.chat_model = ChatOpenAI(
@@ -122,12 +120,12 @@ class CliBot:
             self.say(f"Ошибка при загрузке FAQ: {e}")
             return "FAQ данные недоступны."
 
-    def _extract_token_usage(self, response: dict) -> Any:
+    def _extract_token_usage(self, response: dict) -> int:
         """Extract token usage information from the response."""
         last_msg = response["messages"][-1]
         if hasattr(last_msg, "response_metadata"):
-            return last_msg.response_metadata.get("token_usage").get("total_tokens")
-        return None
+            return int(last_msg.response_metadata.get("token_usage").get("total_tokens", 0))
+        return 0
 
     def __call__(self, user_id: str) -> None:
         session_id = self.get_new_session_id(user_id)
@@ -191,7 +189,7 @@ class CliBot:
         )
 
         end_time = time.time()
-        token_usage = self._extract_token_usage(response)
+        token_usage = self._extract_token_usage(response)        
 
         self.say(
             f"Response time: {end_time - start_time:.2f} seconds, tokens: {token_usage}"
