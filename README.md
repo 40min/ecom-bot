@@ -33,7 +33,7 @@ This is a **demo/test project** created to explore and experiment with LangChain
 ## Tech Stack
 
 - **LangChain** - Agent framework and LLM integration
-- **OpenRouter API** - Language model access
+- **OpenRouter/OpenAI API** - Language model access (configurable)
 - **Python 3.13+** - Runtime environment
 - **Pydantic** - Data validation and structured outputs
 - **PyYAML** - Configuration management
@@ -49,8 +49,12 @@ This is a **demo/test project** created to explore and experiment with LangChain
 2. **Configure environment:**
    ```bash
    cp .env.example .env
-   # Edit .env with your OpenRouter API key and settings
+   # Edit .env with your API key and settings
    ```
+   
+   **Supported LLM providers:**
+   - **OpenRouter** (default): `API_URL=https://openrouter.ai/api/v1`
+   - **OpenAI**: `API_URL=https://api.openai.com/v1`
 
 3. **Run the bot:**
    ```bash

@@ -39,10 +39,13 @@ logging.basicConfig(level=logging.INFO, handlers=[handler], force=True)
 
 def get_common_config():
     """Get common configuration for both bot and evaluate commands."""
-    model_name = os.getenv("OPENROUTER_API_MODEL", "gpt-4o-mini")
-    api_key = os.getenv("OPENROUTER_API_KEY")
+    model_name = os.getenv("API_MODEL", "gpt-4o-mini")
+    api_key = os.getenv("API_KEY")
+    api_url = os.getenv("API_URL", "https://openrouter.ai/api/v1")
+    
     if not api_key:
-        raise ValueError("OPENROUTER_API_KEY is not set")
+        raise ValueError("API_KEY is not set")
+    
     person_name = os.getenv("PERSON_NAME", "alex")
 
     # Load person configuration
@@ -51,7 +54,7 @@ def get_common_config():
     # Load orders data
     load_orders()
 
-    return {"model_name": model_name, "api_key": api_key, "person": person}
+    return {"model_name": model_name, "api_key": api_key, "api_url": api_url, "person": person}
 
 
 @click.group()
@@ -68,6 +71,7 @@ def bot():
     bot = CliBot(
         model_name=config["model_name"],
         api_key=config["api_key"],
+        api_url=config["api_url"],
         person=config["person"],
     )
 
@@ -84,6 +88,7 @@ def evaluate(eval_model):
     bot = CliBot(
         model_name=config["model_name"],
         api_key=config["api_key"],
+        api_url=config["api_url"],
         person=config["person"],
         silent=True,
     )
@@ -94,6 +99,7 @@ def evaluate(eval_model):
     evaluator = BotEvaluator(
         model_name=eval_model,
         api_key=config["api_key"],
+        api_url=config["api_url"],
         person=config["person"],
         reports_dir=reports_dir,
         bot=bot,

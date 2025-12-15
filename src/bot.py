@@ -37,14 +37,15 @@ class CliBot:
         self,
         model_name: str,
         api_key: str,
+        api_url: str,
         person: StyleConfig,
-        faq_file: str = "./data/faq.json",        
+        faq_file: str = "./data/faq.json",
         silent: bool = False,
     ):
         self.chat_model = ChatOpenAI(
             model=model_name,
             temperature=0.3,
-            base_url="https://openrouter.ai/api/v1",
+            base_url=api_url,
             api_key=api_key,
             timeout=15,
         )

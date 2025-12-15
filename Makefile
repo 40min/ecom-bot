@@ -79,8 +79,9 @@ setup-env:
 			echo "⚠️  Please edit .env and add your API keys"; \
 		else \
 			echo "⚠️  No .env.example found. Creating basic .env file..."; \
-			echo "OPENROUTER_API_KEY=your_api_key_here" > .env; \
-			echo "OPENROUTER_API_MODEL=gpt-4o-mini" >> .env; \
+			echo "API_KEY=your_api_key_here" > .env; \
+			echo "API_MODEL=gpt-4o-mini" >> .env; \
+			echo "API_URL=https://openrouter.ai/api/v1" >> .env; \
 			echo "PERSON_NAME=alex" >> .env; \
 			echo "✅ Created basic .env file"; \
 		fi \
@@ -158,7 +159,7 @@ check-env:
 		exit 1; \
 	fi
 	@echo "✅ .env file exists"
-	@if grep -q "OPENROUTER_API_KEY=your_api_key_here" .env; then \
+	@if grep -q "API_KEY=your_api_key_here" .env; then \
 		echo "⚠️  API key not configured. Please edit .env file."; \
 	else \
 		echo "✅ API key appears to be configured"; \
@@ -178,7 +179,7 @@ status:
 	@if [ -d logs ]; then echo "✅ logs directory exists"; else echo "❌ logs directory missing"; fi
 	@if [ -d reports ]; then echo "✅ reports directory exists"; else echo "❌ reports directory missing"; fi
 	@echo "Environment variables:"
-	@grep -E "^(OPENROUTER_|PERSON_NAME)" .env 2>/dev/null || echo "No environment variables found"
+	@grep -E "^(API_|PERSON_NAME)" .env 2>/dev/null || echo "No environment variables found"
 
 # =============================================================================
 # MAINTENANCE

@@ -54,6 +54,7 @@ class BotEvaluator:
         self,
         model_name: str,
         api_key: str,
+        api_url: str,
         person: StyleConfig,
         reports_dir: Path,
         bot: CliBot,
@@ -67,7 +68,7 @@ class BotEvaluator:
         self.llm = ChatOpenAI(
             model=model_name,
             temperature=0.3,
-            base_url="https://openrouter.ai/api/v1",
+            base_url=api_url,
             api_key=api_key,
             timeout=15,
         )
