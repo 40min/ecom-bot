@@ -11,7 +11,7 @@ def apply_func_to_all_docs(func):
         return docs
     return process_docs
 
-def filter_and_dedup(docs: list[Document], min_length: int = 10) -> list[Document]:
+def filter_and_dedup(docs: list[Document], min_length: int = 20) -> list[Document]:
     unique_hashes = set()
     filtered = []
     stats = {"duplicates": 0, "too_short": 0, "empty": 0}
@@ -31,9 +31,9 @@ def filter_and_dedup(docs: list[Document], min_length: int = 10) -> list[Documen
             continue
         unique_hashes.add(h)
         filtered.append(doc)
-    print(f"\n[filter_and_dedup] Первоначально: {len(docs)} чанков")
+    print(f"\n[filter_and_dedup] Первоначально документов: {len(docs)}")
     print(f"[filter_and_dedup] Удалено дубликатов: {stats["duplicates"]}, слишком коротких: {stats["too_short"]}, пустых: {stats["empty"]}")
-    print(f"[filter_and_dedup] Осталось: {len(filtered)} чанков")
+    print(f"[filter_and_dedup] Осталось документов: {len(filtered)}")
     return filtered
 
 def clean_text(text: str) -> str:
@@ -88,7 +88,6 @@ class LoaderRunnable(RunnableLambda):
             for doc in docs:
                 doc.metadata['source_type'] = source_type
                 doc.metadata['topic'] = topic
-            print(f"Загружено {len(docs)} документов ({topic})")
-            print(f"Пример метаданных: {docs[0].metadata}")
+            print(f"Загружено {len(docs)} документов ({topic})")            
             return docs
         super().__init__(load_and_tag)

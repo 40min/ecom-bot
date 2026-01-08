@@ -80,8 +80,8 @@ class KnowledgeDB:
 
         splitter = RecursiveCharacterTextSplitter(
             separators=["\n\n", "\n"],
-            chunk_size=2000,
-            chunk_overlap=0,
+            chunk_size=500,
+            chunk_overlap=100,
             length_function=len,
         )
     

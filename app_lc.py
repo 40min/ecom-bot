@@ -77,7 +77,7 @@ def bot():
     config = get_common_config()
 
     knowledge_db = KnowledgeDB(KNOWLEDGE_DOCS, DB_PATH)
-    knowledge_db.get_vector_store()
+    vector_store = knowledge_db.get_vector_store()
 
     bot = CliBot(
         model_name=config["model_name"],

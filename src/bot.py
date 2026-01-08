@@ -40,7 +40,7 @@ class CliBot:
         api_url: str,
         person: StyleConfig,
         vector_store: FAISS,
-        faq_docs_to_load: int = 3,
+        faq_docs_to_load: int = 4,
         silent: bool = False,
     ):
         self.chat_model = ChatOpenAI(
@@ -92,7 +92,7 @@ class CliBot:
 
 Отвечай на вопросы клиентов, используя информацию из базы данных магазина.
 База знаний (FAQ):
-empty
+use faq_search_tool
 Используй эту информацию для ответов на типичные вопросы клиентов.
 Если вопрос не покрывается FAQ, отвечай на основе общих знаний о работе интернет-магазинов.
 Ответ должен содержать основную фразу (answer) и пошаговое описание процесса или дополнительные пояснения (actions).
@@ -102,10 +102,11 @@ empty
 используй инструмент для поиска информации о заказе.
 
 """
+        faq_search_tool = self._create_faq_search_tool()
 
         return create_agent(
             model=self.chat_model,
-            tools=[lookup_order_tool],
+            tools=[lookup_order_tool, faq_search_tool],
             system_prompt=system_prompt,
             checkpointer=self.checkpointer,
             response_format=StructuredAnswer,
