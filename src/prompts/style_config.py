@@ -110,12 +110,7 @@ class StyleConfig:
         avoid_list = "\n".join([f"  - {item}" for item in person.avoid])
 
         # Build must_include list
-        must_include_list = "\n".join([f"  - {item}" for item in person.must_include])
-
-        # Build fallback response
-        fallback_response = person.fallback.get(
-            "no_data", "Извините, у меня нет информации по этому вопросу."
-        )
+        must_include_list = "\n".join([f"  - {item}" for item in person.must_include])        
 
         prompt_addition = f"""
 Ты {person.name} полезный сотрудник интернет-магазина {self.brand}.
@@ -132,11 +127,18 @@ class StyleConfig:
 - Максимум {tone_config.sentences_max} предложений в ответе
 - {"Используй списки и маркированные пункты" if tone_config.bullets else "Избегай использования списков"}
 
-При отсутствии данных: {fallback_response}
+При отсутствии данных: {self.no_info_fallback_response}
 
 """
 
         return prompt_addition.strip()
+    
+    @property
+    def no_info_fallback_response(self) -> str:
+        """Get fallback response for no information case."""
+        return self.config.tone.persons[self.person_name].fallback.get(
+            "no_data", "Извините, у меня нет информации по этому вопросу."
+        )
 
     @property
     def brand(self) -> str:

@@ -7,7 +7,7 @@ from pathlib import Path
 import click
 from dotenv import load_dotenv
 
-from build_index import KnowledgeDB
+from src.build_index import KnowledgeDB
 from src.bot import CliBot
 from src.orders_db import load_orders
 from src.prompts.style_config import StyleConfig

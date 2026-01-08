@@ -8,7 +8,7 @@ from langchain_core.runnables import RunnableLambda, RunnableParallel
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from utils import (
+from src.utils import (
     LoaderRunnable, 
     clean_docs, 
     filter_and_dedup,

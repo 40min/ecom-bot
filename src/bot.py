@@ -16,19 +16,33 @@ from src.prompts.style_config import StyleConfig
 logger = logging.getLogger(__name__)
 
 
+class Citation(BaseModel):
+    source: str = Field(description="Источник информации из FAQ")
+    page: int = Field(description="Номер страницы или секции", default=0)
+    snippet: str = Field(description="Релевантный фрагмент текста из источника")
+
+
 class StructuredAnswer(BaseModel):
     answer: str = Field(description="Основная фраза-ответ на вопрос клиента")
     actions: list[str] = Field(
         description="Пошаговое описание процесса или дополнительные пояснения",
         default=[],
     )
+    citations: list[Citation] = Field(
+        description="Массив цитат из FAQ, использованных для ответа",
+        default=[],
+    )
+    confidence: str = Field(description="Уровень уверенности в ответе: low, medium или high")
     tone: str = Field(
         description="Самоконтроль соответствия тона общения, не нарушается ли тон общения и ограничения, не выходит ли за рамки заданного стиля",
         default="",
     )
 
     def __str__(self):
-        return self.answer + "\n" + "\n".join(self.actions)
+        result = self.answer
+        if self.actions:
+            result += "\n" + "\n".join(self.actions)
+        return result
 
 
 # Создаём класс для CLI-бота
@@ -53,6 +67,7 @@ class CliBot:
 
         self.vector_store = vector_store
         self.faq_docs_to_load = faq_docs_to_load
+        self.person = person
 
         self.silent = silent
         self.checkpointer = InMemorySaver()
@@ -61,7 +76,7 @@ class CliBot:
         examples_file = f"./data/few_shots_{person.person_name}.jsonl"
         self.few_shots_examples = get_few_shots(examples_file)
 
-        self.agent = self._create_agent(person, faq_file)
+        self.agent = self._create_agent(person)
 
     def say(self, txt: str) -> None:
         """Output text if silent mode is False"""
@@ -75,33 +90,89 @@ class CliBot:
         
         @tool
         def search_faq(query: str) -> str:
-            """Search the FAQ database for information about customer questions.
-            Use this when the customer asks about policies, procedures, or common questions."""
-            results = vector_store.similarity_search(query, k=docs_to_load)
-            return "\n\n".join([doc.page_content for doc in results])
+            """Найти информацию в базе знаний FAQ по запросу клиента.
+            
+            Используй этот инструмент когда клиент задаёт вопрос о:
+            - политике магазина (возврат, обмен, гарантия)
+            - процедурах и правилах
+            - часто задаваемых вопросах
+            - общих вопросах о работе магазина
+            
+            Args:
+                query: Поисковый запрос на русском языке
+                
+            Returns:
+                Релевантная информация из FAQ или сообщение об отсутствии данных
+            """
+            try:
+                results = vector_store.similarity_search(query, k=docs_to_load)
+                
+                if not results:
+                    return "NO_DATA_FOUND"
+                
+                # Format results with metadata for citation tracking
+                formatted_results = []
+                for i, doc in enumerate(results, 1):
+                    metadata = doc.metadata
+                    source = metadata.get("source", f"FAQ-документ-{i}")
+                    page = metadata.get("page", 0)
+                    
+                    formatted_results.append(
+                        f"[ИСТОЧНИК: {source} | СТРАНИЦА: {page}]\n{doc.page_content}\n"
+                    )
+                
+                return "\n---\n".join(formatted_results)
+                
+            except Exception as e:
+                logger.error(f"Error in FAQ search: {e}")
+                return "NO_DATA_FOUND"
         
         return search_faq
 
-    def _create_agent(self, person: StyleConfig, faq_file: str):        
+    def _create_agent(self, person: StyleConfig):        
 
         # Generate person system prompt addition
         person_prompt = person.get_system_prompt_addition()
+        fallback_response = person.no_info_fallback_response
 
         system_prompt: str = f"""
-        {person_prompt}
+{person_prompt}
 
-Отвечай на вопросы клиентов, используя информацию из базы данных магазина.
-База знаний (FAQ):
-use faq_search_tool
-Используй эту информацию для ответов на типичные вопросы клиентов.
-Если вопрос не покрывается FAQ, отвечай на основе общих знаний о работе интернет-магазинов.
-Ответ должен содержать основную фразу (answer) и пошаговое описание процесса или дополнительные пояснения (actions).
-Также оцени свой ответ: не нарушается ли тон общения и ограничения, не выходит ли за рамки заданного стиля.
+Отвечай на вопросы клиентов, используя инструмент search_faq для поиска информации в базе знаний 
+либо lookup_order_tool если вопрос связан с заказом
 
-Когда клиент спрашивает о статусе заказа либо вводит команду "/order order_id" (например, "/order 12345"),
-используй инструмент для поиска информации о заказе.
+Обработка результатов поиска:
+- Если инструмент search_faq вернул "NO_DATA_FOUND" или результаты не релевантны вопросу:
+  * Используй стандартную фразу: "{fallback_response}"
+  * Установи confidence: "low"
+  * Оставь citations пустым массивом
+  
+- Если найдена релевантная информация:
+  * Сформируй ответ на основе найденных данных
+  * Извлеки citations из результатов (ищи метки [ИСТОЧНИК: ... | СТРАНИЦА: ...])
+  * Для каждого использованного фрагмента создай объект citation с полями:
+    - source: название источника
+    - page: номер страницы
+    - snippet: релевантный фрагмент текста (30-100 символов)
+  * Оцени confidence:
+    - "high": информация точно отвечает на вопрос, найдено 2+ релевантных источника
+    - "medium": информация частично отвечает на вопрос или найден 1 источник
+    - "low": информация косвенно связана с вопросом
 
+Структура ответа:
+- answer: основная фраза-ответ клиенту (соблюдай стиль общения!)
+- actions: пошаговые инструкции или дополнительные пояснения (если применимо)
+- citations: массив источников, использованных для ответа
+- confidence: уровень уверенности (low/medium/high)
+- tone: самоконтроль стиля общения
+
+Обработка заказов:
+Когда клиент спрашивает о статусе заказа или вводит команду "/order order_id",
+используй инструмент lookup_order_tool для поиска информации о заказе.
+
+НЕ пытайся отвечать на вопросы о политиках и процедурах магазина без использования search_faq!
 """
+        
         faq_search_tool = self._create_faq_search_tool()
 
         return create_agent(
@@ -152,7 +223,13 @@ use faq_search_tool
                 extra = {"token_usage": token_usage} if token_usage else {}
                 logging.info(f"Bot: {bot_reply.model_dump_json(indent=2)}", extra=extra)
 
-                self.say("Бот: " + str(bot_reply) + "\n")
+                # Display citations if present
+                output = "Бот: " + str(bot_reply)
+                if bot_reply.citations:
+                    output += f"\n\n[Уверенность: {bot_reply.confidence}]"
+                    output += f"\n[Источники: {len(bot_reply.citations)}]"
+                
+                self.say(output + "\n")
 
             except APITimeoutError:
                 self.say("Бот: [Ошибка] Превышено время ожидания ответа.")
@@ -165,6 +242,7 @@ use faq_search_tool
                 break
             except Exception as e:
                 self.say(f"Бот: [Неизвестная ошибка] {e}")
+                logger.exception("Unexpected error in bot")
                 continue
 
     def ask(self, user_text: str, session_id: str) -> tuple[StructuredAnswer, int]:
