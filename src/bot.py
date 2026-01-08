@@ -1,5 +1,6 @@
 import logging
 import time
+from typing import TypedDict
 
 from langchain.agents import create_agent
 from langchain_openai import ChatOpenAI
@@ -15,6 +16,12 @@ from src.prompts.style_config import StyleConfig
 
 logger = logging.getLogger(__name__)
 
+
+class FAQDocument(TypedDict):
+    """Single FAQ document with metadata"""
+    content: str
+    source: str
+    page: int
 
 class Citation(BaseModel):
     source: str = Field(description="Источник информации из FAQ")
@@ -84,95 +91,106 @@ class CliBot:
             print(txt)
 
     def _create_faq_search_tool(self):
-        """Create FAQ search tool that captures vector_store"""
-        vector_store = self.vector_store  # Capture in closure
+        """Create FAQ search tool with structured output"""
+        vector_store = self.vector_store
         docs_to_load = self.faq_docs_to_load
-        
+    
         @tool
-        def search_faq(query: str) -> str:
+        def search_faq(query: str) -> list[dict]:
             """Найти информацию в базе знаний FAQ по запросу клиента.
-            
+        
             Используй этот инструмент когда клиент задаёт вопрос о:
             - политике магазина (возврат, обмен, гарантия)
             - процедурах и правилах
             - часто задаваемых вопросах
             - общих вопросах о работе магазина
-            
+        
             Args:
                 query: Поисковый запрос на русском языке
-                
+            
             Returns:
-                Релевантная информация из FAQ или сообщение об отсутствии данных
+                Список найденных документов. Каждый документ содержит:
+                - content: текст документа
+                - source: название источника
+                - page: номер страницы
+            
+            Пустой список [] означает, что информация не найдена.
             """
             try:
                 results = vector_store.similarity_search(query, k=docs_to_load)
-                
+            
                 if not results:
-                    return "NO_DATA_FOUND"
-                
-                # Format results with metadata for citation tracking
-                formatted_results = []
-                for i, doc in enumerate(results, 1):
+                    return []
+            
+                # Build documents list
+                documents = []
+                for doc in results:
                     metadata = doc.metadata
-                    source = metadata.get("source", f"FAQ-документ-{i}")
-                    page = metadata.get("page", 0)
-                    
-                    formatted_results.append(
-                        f"[ИСТОЧНИК: {source} | СТРАНИЦА: {page}]\n{doc.page_content}\n"
-                    )
-                
-                return "\n---\n".join(formatted_results)
-                
+                    documents.append({
+                        "content": doc.page_content,
+                        "source": metadata.get("source", "FAQ"),
+                        "page": metadata.get("page", 0),
+                    })
+            
+                return documents
+            
             except Exception as e:
                 logger.error(f"Error in FAQ search: {e}")
-                return "NO_DATA_FOUND"
-        
+                return []
+    
         return search_faq
 
     def _create_agent(self, person: StyleConfig):        
-
-        # Generate person system prompt addition
         person_prompt = person.get_system_prompt_addition()
         fallback_response = person.no_info_fallback_response
 
         system_prompt: str = f"""
 {person_prompt}
 
-Отвечай на вопросы клиентов, используя инструмент search_faq для поиска информации в базе знаний 
-либо lookup_order_tool если вопрос связан с заказом
+Отвечай на вопросы клиентов, используя инструменты:
+- search_faq: для поиска информации в базе знаний
+- lookup_order_tool: для вопросов о заказах
 
-Обработка результатов поиска:
-- Если инструмент search_faq вернул "NO_DATA_FOUND" или результаты не релевантны вопросу:
-  * Используй стандартную фразу: "{fallback_response}"
-  * Установи confidence: "low"
-  * Оставь citations пустым массивом
+ОБРАБОТКА РЕЗУЛЬТАТОВ search_faq:
+
+Инструмент возвращает список документов:
+[
+    {{"content": "текст", "source": "название", "page": номер}},
+    ...
+]
+
+Если список пустой []:
+  - Используй fallback: "{fallback_response}"
+  - Установи confidence: "low"
+  - Оставь citations пустым []
+
+Если список не пустой:
+  - Прочитай content из всех документов
+  - Сформируй ответ на основе найденной информации
+  - Для каждого использованного документа создай citation:
+    * source: из поля "source"
+    * page: из поля "page"
+    * snippet: короткая цитата из "content" (30-100 символов)
   
-- Если найдена релевантная информация:
-  * Сформируй ответ на основе найденных данных
-  * Извлеки citations из результатов (ищи метки [ИСТОЧНИК: ... | СТРАНИЦА: ...])
-  * Для каждого использованного фрагмента создай объект citation с полями:
-    - source: название источника
-    - page: номер страницы
-    - snippet: релевантный фрагмент текста (30-100 символов)
-  * Оцени confidence:
-    - "high": информация точно отвечает на вопрос, найдено 2+ релевантных источника
-    - "medium": информация частично отвечает на вопрос или найден 1 источник
-    - "low": информация косвенно связана с вопросом
+  - Определи confidence:
+    * "high": точный ответ, использовано 2+ документа
+    * "medium": частичный ответ или 1 документ
+    * "low": косвенная информация
 
-Структура ответа:
-- answer: основная фраза-ответ клиенту (соблюдай стиль общения!)
-- actions: пошаговые инструкции или дополнительные пояснения (если применимо)
-- citations: массив источников, использованных для ответа
-- confidence: уровень уверенности (low/medium/high)
-- tone: самоконтроль стиля общения
+СТРУКТУРА ОТВЕТА:
+- answer: основная фраза клиенту (соблюдай стиль!)
+- actions: пошаговые инструкции (если нужно)
+- citations: массив использованных источников
+- confidence: low/medium/high
+- tone: самоконтроль стиля
 
 Обработка заказов:
 Когда клиент спрашивает о статусе заказа или вводит команду "/order order_id",
 используй инструмент lookup_order_tool для поиска информации о заказе.
 
-НЕ пытайся отвечать на вопросы о политиках и процедурах магазина без использования search_faq!
+ВАЖНО: НЕ отвечай на вопросы о политиках магазина без использования search_faq!
 """
-        
+
         faq_search_tool = self._create_faq_search_tool()
 
         return create_agent(
@@ -227,7 +245,12 @@ class CliBot:
                 output = "Бот: " + str(bot_reply)
                 if bot_reply.citations:
                     output += f"\n\n[Уверенность: {bot_reply.confidence}]"
-                    output += f"\n[Источники: {len(bot_reply.citations)}]"
+                    # Show detailed citation information
+                    citation_info = "\n".join(
+                        f"  {i+1}. [{c.source}] стр. {c.page}: {c.snippet}"
+                        for i, c in enumerate(bot_reply.citations)
+                    )
+                    output += f"\n[Источники ({len(bot_reply.citations)}):\n{citation_info}]"
                 
                 self.say(output + "\n")
 
