@@ -1,4 +1,4 @@
-.PHONY: help install install-dev setup-env run-bot run-eval test lint format clean logs-setup dev-setup
+.PHONY: help install install-dev setup-env run-bot run-eval build-index test lint format clean logs-setup dev-setup
 
 # Default target
 help:
@@ -54,6 +54,11 @@ run-eval-custom:
 		exit 1; \
 	fi
 	python app_lc.py evaluate --eval-model $(MODEL)
+
+# Build the knowledge base index
+build-index:
+	@echo "🔨 Building knowledge base index..."
+	uv run python src/build_index.py
 
 # =============================================================================
 # DEVELOPMENT SETUP

@@ -1,11 +1,11 @@
-import json
 import logging
 import time
-from typing import Any
 
 from langchain.agents import create_agent
 from langchain_openai import ChatOpenAI
 from langgraph.checkpoint.memory import InMemorySaver
+from langchain.tools import tool
+from langchain_community.vectorstores import FAISS
 from openai import APIConnectionError, APITimeoutError, AuthenticationError
 from pydantic import BaseModel, Field
 
@@ -39,7 +39,8 @@ class CliBot:
         api_key: str,
         api_url: str,
         person: StyleConfig,
-        faq_file: str = "./data/faq.json",
+        vector_store: FAISS,
+        faq_docs_to_load: int = 3,
         silent: bool = False,
     ):
         self.chat_model = ChatOpenAI(
@@ -49,6 +50,9 @@ class CliBot:
             api_key=api_key,
             timeout=15,
         )
+
+        self.vector_store = vector_store
+        self.faq_docs_to_load = faq_docs_to_load
 
         self.silent = silent
         self.checkpointer = InMemorySaver()
@@ -64,10 +68,21 @@ class CliBot:
         if not self.silent:
             print(txt)
 
-    def _create_agent(self, person: StyleConfig, faq_file: str):
+    def _create_faq_search_tool(self):
+        """Create FAQ search tool that captures vector_store"""
+        vector_store = self.vector_store  # Capture in closure
+        docs_to_load = self.faq_docs_to_load
+        
+        @tool
+        def search_faq(query: str) -> str:
+            """Search the FAQ database for information about customer questions.
+            Use this when the customer asks about policies, procedures, or common questions."""
+            results = vector_store.similarity_search(query, k=docs_to_load)
+            return "\n\n".join([doc.page_content for doc in results])
+        
+        return search_faq
 
-        # Load FAQ data
-        faq_data = self._load_faq(faq_file)
+    def _create_agent(self, person: StyleConfig, faq_file: str):        
 
         # Generate person system prompt addition
         person_prompt = person.get_system_prompt_addition()
@@ -77,7 +92,7 @@ class CliBot:
 
 Отвечай на вопросы клиентов, используя информацию из базы данных магазина.
 База знаний (FAQ):
-{faq_data}
+empty
 Используй эту информацию для ответов на типичные вопросы клиентов.
 Если вопрос не покрывается FAQ, отвечай на основе общих знаний о работе интернет-магазинов.
 Ответ должен содержать основную фразу (answer) и пошаговое описание процесса или дополнительные пояснения (actions).
@@ -98,29 +113,7 @@ class CliBot:
 
     def get_new_session_id(self, user_id: str) -> str:
         return f"{user_id}_{int(time.time())}"
-
-    def _load_faq(self, file_path: str) -> str:
-        """Load and format FAQ data from JSON file"""
-        try:
-            with open(file_path, "r", encoding="utf-8") as f:
-                faq = json.load(f)
-
-            # Format FAQ as text
-            formatted = "\n\n".join(
-                [f"Вопрос: {item['q']}\nОтвет: {item['a']}" for item in faq]
-            )
-
-            return formatted
-        except FileNotFoundError:
-            self.say(f"Предупреждение: FAQ файл не найден по пути {file_path}")
-            return "FAQ данные недоступны."
-        except json.JSONDecodeError:
-            self.say(f"Предупреждение: Неверный формат JSON в {file_path}")
-            return "FAQ данные повреждены."
-        except Exception as e:
-            self.say(f"Ошибка при загрузке FAQ: {e}")
-            return "FAQ данные недоступны."
-
+    
     def _extract_token_usage(self, response: dict) -> int:
         """Extract token usage information from the response."""
         last_msg = response["messages"][-1]

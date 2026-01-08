@@ -7,6 +7,7 @@ from pathlib import Path
 import click
 from dotenv import load_dotenv
 
+from build_index import KnowledgeDB
 from src.bot import CliBot
 from src.orders_db import load_orders
 from src.prompts.style_config import StyleConfig
@@ -35,6 +36,13 @@ handler = logging.FileHandler(log_filename, encoding="utf-8")
 handler.setFormatter(JsonFormatter(datefmt="%Y-%m-%d %H:%M:%S"))
 
 logging.basicConfig(level=logging.INFO, handlers=[handler], force=True)
+
+KNOWLEDGE_DOCS = [
+        Path("./data/policy_returns.pdf"),
+        Path("./data/shipping_terms.pdf"),
+    ]
+
+DB_PATH = Path("./vectordb")
 
 
 def get_common_config():
@@ -68,11 +76,15 @@ def bot():
     """Run the bot in interactive mode."""
     config = get_common_config()
 
+    knowledge_db = KnowledgeDB(KNOWLEDGE_DOCS, DB_PATH)
+    knowledge_db.get_vector_store()
+
     bot = CliBot(
         model_name=config["model_name"],
         api_key=config["api_key"],
         api_url=config["api_url"],
         person=config["person"],
+        vector_store=vector_store,
     )
 
     logging.info("=== New session ===")
@@ -83,13 +95,17 @@ def bot():
 @click.option("--eval-model", default="gpt-4o-mini", help="Model to use for evaluation")
 def evaluate(eval_model):
     """Run the bot in evaluation mode."""
-    config = get_common_config()
+    config = get_common_config()    
+
+    knowledge_db = KnowledgeDB(KNOWLEDGE_DOCS, DB_PATH)
+    vector_store = knowledge_db.get_vector_store()
 
     bot = CliBot(
         model_name=config["model_name"],
         api_key=config["api_key"],
         api_url=config["api_url"],
         person=config["person"],
+        vector_store=vector_store,
         silent=True,
     )
 
