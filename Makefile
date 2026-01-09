@@ -40,7 +40,7 @@ help:
 # Run bot in interactive mode
 run-bot:
 	@echo "🚀 Starting bot in interactive mode..."
-	python app_lc.py bot
+	uv run python app_lc.py bot
 
 # Run bot in evaluation mode
 run-style-eval:
