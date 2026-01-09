@@ -93,7 +93,7 @@ def bot():
 
 @main.command()
 @click.option("--eval-model", default="gpt-4o-mini", help="Model to use for evaluation")
-def evaluate(eval_model):
+def evaluate_style(eval_model):
     """Run the bot in evaluation mode."""
     config = get_common_config()    
 
@@ -123,7 +123,7 @@ def evaluate(eval_model):
 
     data_dir = Path("data")
     eval_prompts = (
-        (data_dir / "eval_prompts.txt").read_text(encoding="utf-8").strip().splitlines()
+        (data_dir / "eval_style_prompts.txt").read_text(encoding="utf-8").strip().splitlines()
     )
 
     report = evaluator.eval_batch(eval_prompts)

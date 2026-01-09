@@ -1,4 +1,4 @@
-.PHONY: help install install-dev setup-env run-bot run-eval build-index test lint format clean logs-setup dev-setup
+.PHONY: help install install-dev setup-env run-bot run-style-eval build-index test lint format clean logs-setup dev-setup
 
 # Default target
 help:
@@ -6,8 +6,8 @@ help:
 	@echo ""
 	@echo "=== Running the Application ==="
 	@echo "  run-bot        Run the bot in interactive mode"
-	@echo "  run-eval       Run the bot in evaluation mode"
-	@echo "  run-eval-custom Run evaluation with custom model (specify MODEL)"
+	@echo "  run-style-eval       Run the bot in evaluation mode"
+	@echo "  run-style-eval-custom Run evaluation with custom model (specify MODEL)"
 	@echo ""
 	@echo "=== Development Setup ==="
 	@echo "  install        Install project dependencies"
@@ -42,18 +42,18 @@ run-bot:
 	python app_lc.py bot
 
 # Run the bot in evaluation mode
-run-eval:
+run-style-eval:
 	@echo "📊 Starting bot in evaluation mode..."
-	python app_lc.py evaluate
+	python app_lc.py evaluate_style
 
 # Run evaluation with custom model
-run-eval-custom:
+run-style-eval-custom:
 	@echo "📊 Starting bot in evaluation mode with custom model..."
 	@if [ -z "$(MODEL)" ]; then \
-		echo "Error: Please specify MODEL, e.g., make run-eval-custom MODEL=gpt-4o"; \
+		echo "Error: Please specify MODEL, e.g., make run-style-eval-custom MODEL=gpt-4o"; \
 		exit 1; \
 	fi
-	python app_lc.py evaluate --eval-model $(MODEL)
+	python app_lc.py evaluate_style --eval-model $(MODEL)
 
 # Build the knowledge base index
 build-index:
@@ -101,7 +101,7 @@ dev-setup: install-dev setup-env logs-setup
 	@echo "Next steps:"
 	@echo "1. Edit .env file and add your API keys"
 	@echo "2. Run 'make run-bot' to start the bot"
-	@echo "3. Run 'make run-eval' to test evaluation mode"
+	@echo "3. Run 'make run-style-eval' to test evaluation mode"
 
 # Create necessary directories
 logs-setup:
