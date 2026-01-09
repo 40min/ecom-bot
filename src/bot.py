@@ -235,23 +235,11 @@ class CliBot:
                 continue
 
             try:
-
                 bot_reply, token_usage = self.ask(user_text, session_id)
 
-                extra = {"token_usage": token_usage} if token_usage else {}
-                logging.info(f"Bot: {bot_reply.model_dump_json(indent=2)}", extra=extra)
-
-                # Display citations if present
-                output = "Бот: " + str(bot_reply)
-                if bot_reply.citations:
-                    output += f"\n\n[Уверенность: {bot_reply.confidence}]"
-                    # Show detailed citation information
-                    citation_info = "\n".join(
-                        f"  {i+1}. [{c.source}] стр. {c.page}: {c.snippet}"
-                        for i, c in enumerate(bot_reply.citations)
-                    )
-                    output += f"\n[Источники ({len(bot_reply.citations)}):\n{citation_info}]"
-                
+                # Log and format the response
+                self._log_response(bot_reply, token_usage)
+                output = self._format_response_output(bot_reply)
                 self.say(output + "\n")
 
             except APITimeoutError:
@@ -268,10 +256,36 @@ class CliBot:
                 logger.exception("Unexpected error in bot")
                 continue
 
+    def _log_response(self, bot_reply: StructuredAnswer, token_usage: int) -> None:
+        """Log the bot response with token usage and citations."""
+        extra: dict = {}
+        if token_usage:
+            extra["token_usage"] = token_usage
+        if bot_reply.citations:
+            extra["citations"] = [
+                {"source": c.source, "page": c.page, "snippet": c.snippet}
+                for c in bot_reply.citations
+            ]
+
+        logging.info(f"Bot: {bot_reply.model_dump_json(indent=2)}", extra=extra)
+
+    def _format_response_output(self, bot_reply: StructuredAnswer) -> str:
+        """Format the bot response for display with citations."""
+        output = "Бот: " + str(bot_reply)
+        if bot_reply.citations:
+            output += f"\n\n[Confidence: {bot_reply.confidence}]"
+            # Show detailed citation information
+            citation_info = "\n".join(
+                f"  {i+1}. [{c.source}] page {c.page}: {c.snippet}"
+                for i, c in enumerate(bot_reply.citations)
+            )
+            output += f"\n[Citations ({len(bot_reply.citations)}):\n{citation_info}]"
+        return output
+
     def ask(self, user_text: str, session_id: str) -> tuple[StructuredAnswer, int]:
         examples = self.few_shots_examples.format(input=user_text)
 
-        self.say("Sending request to API...")
+        self.say("\nSending request to API...")
         start_time = time.time()
 
         response = self.agent.invoke(
@@ -288,7 +302,7 @@ class CliBot:
         token_usage = self._extract_token_usage(response)        
 
         self.say(
-            f"Response time: {end_time - start_time:.2f} seconds, tokens: {token_usage}"
+            f"Response time: {end_time - start_time:.2f} seconds, tokens: {token_usage}\n"
         )
 
         bot_reply: StructuredAnswer = response["structured_response"]

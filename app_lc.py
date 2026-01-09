@@ -11,7 +11,7 @@ from src.build_index import KnowledgeDB
 from src.bot import CliBot
 from src.orders_db import load_orders
 from src.prompts.style_config import StyleConfig
-from src.style_eval import BotEvaluator
+from src.style_eval import BotStyleEvaluator
 
 load_dotenv()
 
@@ -112,7 +112,7 @@ def evaluate(eval_model):
     reports_dir = Path("reports")
     reports_dir.mkdir(exist_ok=True)
 
-    evaluator = BotEvaluator(
+    evaluator = BotStyleEvaluator(
         model_name=eval_model,
         api_key=config["api_key"],
         api_url=config["api_url"],

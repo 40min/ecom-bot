@@ -49,7 +49,7 @@ class Grade(BaseModel):
         return v
 
 
-class BotEvaluator:
+class BotStyleEvaluator:
     def __init__(
         self,
         model_name: str,

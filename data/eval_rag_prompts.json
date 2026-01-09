@@ -1,0 +1,54 @@
+{
+    "prompts": [
+        {
+            "question": "Сколько дней на возврат?",
+            "oos": false,
+            "category": "returns"
+        },
+        {
+            "question": "Сколько идёт стандартная доставка?",
+            "oos": false,
+            "category": "shipping"
+        },
+        {
+            "question": "Можно ускорить доставку? На сколько?",
+            "oos": false,
+            "category": "shipping"
+        },
+        {
+            "question": "Компенсируете обратную пересылку без подтверждённого брака?",
+            "oos": false,
+            "category": "returns"
+        },
+        {
+            "question": "Принимаете криптовалюту?",
+            "oos": true,
+            "category": "payment"
+        },
+        {
+            "question": "Есть ли доставка дронов?",
+            "oos": true,
+            "category": "shipping"
+        },
+        {
+            "question": "Сколько дней хранится посылка в пункте выдачи?",
+            "oos": false,
+            "category": "shipping"
+        },
+        {
+            "question": "Можно вернуть товар через полгода, если не понравился цвет?",
+            "oos": false,
+            "category": "returns"
+        },
+        {
+            "question": "Доставляете ли вы на Марс через SpaceX?",
+            "oos": true,
+            "category": "shipping"
+        },
+        {
+            "question": "Можно ли оплатить заказ шкурками бобра?",
+            "oos": true,
+            "category": "payment"
+        }
+    ]
+}
