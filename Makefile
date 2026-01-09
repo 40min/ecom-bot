@@ -44,7 +44,7 @@ run-bot:
 # Run the bot in evaluation mode
 run-style-eval:
 	@echo "📊 Starting bot in evaluation mode..."
-	python app_lc.py evaluate_style
+	uv run python app_lc.py evaluate-style
 
 # Run evaluation with custom model
 run-style-eval-custom:
@@ -53,7 +53,7 @@ run-style-eval-custom:
 		echo "Error: Please specify MODEL, e.g., make run-style-eval-custom MODEL=gpt-4o"; \
 		exit 1; \
 	fi
-	python app_lc.py evaluate_style --eval-model $(MODEL)
+	uv run python app_lc.py evaluate-style --eval-model $(MODEL)
 
 # Build the knowledge base index
 build-index:

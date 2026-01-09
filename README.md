@@ -74,12 +74,12 @@ python app_lc.py bot
 
 **Evaluation Mode:**
 ```bash
-python app_lc.py evaluate
-# or: make run-eval
+uv run python app_lc.py evaluate-style
+# or: make run-style-eval
 
 # With custom evaluation model:
-python app_lc.py evaluate --eval-model gpt-4o
-# or: make run-eval-custom MODEL=gpt-4o
+uv run python app_lc.py evaluate-style --eval-model gpt-4o
+# or: make run-style-eval-custom MODEL=gpt-4o
 ```
 
 ### Supplemental Commands
