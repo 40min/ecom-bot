@@ -1,5 +1,6 @@
 import json
 import logging
+import re
 from pathlib import Path
 from typing import Optional
 
@@ -68,14 +69,29 @@ class RAGEvaluator:
         fallback_phrase = self.bot.person.no_info_fallback_response.lower()
         answer_text = response.answer.lower()
         
-        # Check if the answer contains the fallback phrase or similar indicators
+        # 1. Check for exact fallback phrase (original logic)
+        if fallback_phrase in answer_text:
+            return True
+            
+        # 2. Check for partial matches of the fallback phrase
+        # Split fallback into significant words (length > 3) to avoid common prepositions
+        fallback_words = [w for w in re.findall(r'\w+', fallback_phrase) if len(w) > 3]
+        if fallback_words:
+            # If at least 50% of significant words from fallback are present
+            matches = sum(1 for word in fallback_words if word in answer_text)
+            if matches / len(fallback_words) >= 0.5:
+                return True
+
+        # 3. Check for common lack-of-knowledge indicators
         fallback_indicators = [
-            fallback_phrase,
             "не знаю",
+            "не ведаю",
+            "не приходилось слыхать",
             "нет информации",
             "не могу ответить",
             "нет данных",
             "информация отсутствует",
+            "не в курсе",
         ]
         
         return any(indicator in answer_text for indicator in fallback_indicators)
@@ -249,4 +265,3 @@ class RAGEvaluator:
         logger.info(f"Evaluation report saved to {output_path}")
         
         return report
-    
