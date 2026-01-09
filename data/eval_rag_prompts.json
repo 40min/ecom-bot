@@ -11,7 +11,7 @@
             "category": "shipping"
         },
         {
-            "question": "Можно ускорить доставку? На сколько?",
+            "question": "Сколько будет стоить доставка в регион?",
             "oos": false,
             "category": "shipping"
         },

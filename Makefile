@@ -1,13 +1,14 @@
-.PHONY: help install install-dev setup-env run-bot run-style-eval build-index test lint format clean logs-setup dev-setup
+.PHONY: help install install-dev setup-env run-bot run-style-eval run-rag-eval build-index test lint format clean logs-setup dev-setup
 
 # Default target
 help:
 	@echo "E-commerce Bot - Available Commands:"
 	@echo ""
 	@echo "=== Running the Application ==="
-	@echo "  run-bot        Run the bot in interactive mode"
-	@echo "  run-style-eval       Run the bot in evaluation mode"
+	@echo "  run-bot        Run bot in interactive mode"
+	@echo "  run-style-eval       Run bot in evaluation mode"
 	@echo "  run-style-eval-custom Run evaluation with custom model (specify MODEL)"
+	@echo "  run-rag-eval   Run RAG evaluation mode"
 	@echo ""
 	@echo "=== Development Setup ==="
 	@echo "  install        Install project dependencies"
@@ -36,12 +37,12 @@ help:
 # APPLICATION RUNNING
 # =============================================================================
 
-# Run the bot in interactive mode
+# Run bot in interactive mode
 run-bot:
 	@echo "🚀 Starting bot in interactive mode..."
 	python app_lc.py bot
 
-# Run the bot in evaluation mode
+# Run bot in evaluation mode
 run-style-eval:
 	@echo "📊 Starting bot in evaluation mode..."
 	uv run python app_lc.py evaluate-style
@@ -55,7 +56,12 @@ run-style-eval-custom:
 	fi
 	uv run python app_lc.py evaluate-style --eval-model $(MODEL)
 
-# Build the knowledge base index
+# Run RAG evaluation mode
+run-rag-eval:
+	@echo "📊 Starting RAG evaluation mode..."
+	uv run python app_lc.py evaluate-rag
+
+# Build knowledge base index
 build-index:
 	@echo "🔨 Building knowledge base index..."
 	uv run python src/build_index.py
@@ -102,6 +108,7 @@ dev-setup: install-dev setup-env logs-setup
 	@echo "1. Edit .env file and add your API keys"
 	@echo "2. Run 'make run-bot' to start the bot"
 	@echo "3. Run 'make run-style-eval' to test evaluation mode"
+	@echo "4. Run 'make run-rag-eval' to test RAG evaluation mode"
 
 # Create necessary directories
 logs-setup:

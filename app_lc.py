@@ -12,6 +12,7 @@ from src.bot import CliBot
 from src.orders_db import load_orders
 from src.prompts.style_config import StyleConfig
 from src.style_eval import BotStyleEvaluator
+from src.rag_eval import RAGEvaluator
 
 load_dotenv()
 
@@ -161,6 +162,79 @@ def evaluate_style(eval_model):
     
     print(f"\n📄 Полный отчёт сохранён: {reports_dir / 'style_eval.json'}")
     print(f"📋 Краткая сводка: {reports_dir / 'style_eval_summary.json'}")
+    print("=" * 50)
+
+
+@main.command()
+def evaluate_rag():
+    """Run RAG evaluation mode to test document-based question answering."""
+    config = get_common_config()
+
+    knowledge_db = KnowledgeDB(KNOWLEDGE_DOCS, DB_PATH)
+    vector_store = knowledge_db.get_vector_store()
+
+    bot = CliBot(
+        model_name=config["model_name"],
+        api_key=config["api_key"],
+        api_url=config["api_url"],
+        person=config["person"],
+        vector_store=vector_store,
+        silent=True,
+    )
+
+    reports_dir = Path("reports")
+    reports_dir.mkdir(exist_ok=True)
+
+    evaluator = RAGEvaluator(
+        bot=bot,
+        reports_dir=reports_dir,
+    )
+
+    data_dir = Path("data")
+    eval_prompts_file = data_dir / "eval_rag_prompts.json"
+
+    report = evaluator.evaluate(eval_prompts_file)
+
+    # Print summary
+    print("=" * 50)
+    print("RAG ОЦЕНКА - СВОДКА")
+    print("=" * 50)
+    print(f"📊 Процент прохождения: {report['pass_rate']:.2f}%")
+    print(f"🎯 Целевой порог: {report['target_pass_rate']:.2f}%")
+    print(f"✅ Пройдено тестов: {report['passed_count']}/{report['total_count']}")
+    print(f"❌ Не пройдено тестов: {report['failed_count']}")
+    
+    if report['meets_target']:
+        print(f"\n✅ ЦЕЛЬ ДОСТИГНУТА: Процент прохождения >= {report['target_pass_rate']}%")
+    else:
+        print(f"\n❌ ЦЕЛЬ НЕ ДОСТИГНУТА: Процент прохождения < {report['target_pass_rate']}%")
+    
+    # Show breakdown by category
+    categories = {}
+    for item in report['items']:
+        category = item.get('category', 'unknown')
+        if category not in categories:
+            categories[category] = {'total': 0, 'passed': 0}
+        categories[category]['total'] += 1
+        if item['pass']:
+            categories[category]['passed'] += 1
+    
+    if categories:
+        print(f"\n📋 РЕЗУЛЬТАТЫ ПО КАТЕГОРИЯМ:")
+        for category, stats in sorted(categories.items()):
+            pass_rate = (stats['passed'] / stats['total'] * 100) if stats['total'] > 0 else 0
+            print(f"  • {category}: {stats['passed']}/{stats['total']} ({pass_rate:.1f}%)")
+    
+    # Show failed tests
+    failed_tests = [item for item in report['items'] if not item['pass']]
+    if failed_tests:
+        print(f"\n❌ НЕУДАЧНЫЕ ТЕСТЫ ({len(failed_tests)}):")
+        for i, item in enumerate(failed_tests, 1):
+            oos_text = "OOS" if item['oos'] else "in-scope"
+            print(f"  {i}. [{oos_text}] {item['q']}")
+            print(f"     Причина: {item.get('reason', 'N/A')}")
+    
+    print(f"\n📄 Полный отчёт сохранён: {reports_dir / 'rag_eval.json'}")
     print("=" * 50)
 
 

@@ -12,6 +12,7 @@ This is a **demo/test project** created to explore and experiment with LangChain
 - **LangChain agent integration** with custom tools
 - **Configurable bot personalities** (roles) via YAML configuration
 - **Style evaluation mode** with rule-based and LLM-based scoring
+- **RAG evaluation mode** for testing document-based question answering
 - **Order lookup functionality** via database simulation
 - **FAQ-based responses** using structured data
 - **Session management** with conversation memory
@@ -23,12 +24,14 @@ This is a **demo/test project** created to explore and experiment with LangChain
 - [`app_lc.py`](app_lc.py:1) - Main CLI entry point with bot and evaluate commands
 - [`src/bot.py`](src/bot.py:1) - LangChain-based CLI bot implementation
 - [`src/style_eval.py`](src/style_eval.py:1) - Style evaluation system with async batch processing
+- [`src/rag_eval.py`](src/rag_eval.py:1) - RAG evaluation system for document-based QA
 - [`src/prompts/style_config.py`](src/prompts/style_config.py:1) - Bot personality configuration loader
 - [`src/orders_db.py`](src/orders_db.py:1) - Order database simulation and lookup tools
 - [`data/style_guide.yaml`](data/style_guide.yaml:1) - Bot personality definitions
 - [`data/faq.json`](data/faq.json:1) - Customer service FAQ data
 - [`data/orders.json`](data/orders.json:1) - Sample order data for testing
-- [`data/eval_prompts.txt`](data/eval_prompts.txt:1) - Test prompts for evaluation mode
+- [`data/eval_style_prompts.txt`](data/eval_style_prompts.txt:1) - Test prompts for style evaluation
+- [`data/eval_rag_prompts.json`](data/eval_rag_prompts.json:1) - Test questions for RAG evaluation
 
 ## Tech Stack
 
@@ -72,7 +75,7 @@ python app_lc.py bot
 # or: make run-bot
 ```
 
-**Evaluation Mode:**
+**Style Evaluation Mode:**
 ```bash
 uv run python app_lc.py evaluate-style
 # or: make run-style-eval
@@ -80,6 +83,12 @@ uv run python app_lc.py evaluate-style
 # With custom evaluation model:
 uv run python app_lc.py evaluate-style --eval-model gpt-4o
 # or: make run-style-eval-custom MODEL=gpt-4o
+```
+
+**RAG Evaluation Mode:**
+```bash
+uv run python app_lc.py evaluate-rag
+# or: make run-rag-eval
 ```
 
 ### Supplemental Commands
@@ -113,7 +122,7 @@ PERSON_NAME=alex  # or pahom
 
 The bot automatically loads the corresponding personality configuration and few-shot examples from [`data/few_shots_{person}.jsonl`](data/few_shots_alex.jsonl:1).
 
-## Evaluation Mode
+## Style Evaluation Mode
 
 Evaluation mode tests bot responses against style guidelines using a hybrid scoring system:
 
@@ -126,11 +135,11 @@ Evaluation mode tests bot responses against style guidelines using a hybrid scor
 
 **Setup:**
 
-1. Create test prompts in [`data/eval_prompts.txt`](data/eval_prompts.txt:1) (one per line)
+1. Create test prompts in [`data/eval_style_prompts.txt`](data/eval_style_prompts.txt:1) (one per line)
 2. Configure evaluation model in command or use default
 3. Run evaluation:
    ```bash
-   python app_lc.py evaluate --eval-model gpt-4o-mini
+   python app_lc.py evaluate-style --eval-model gpt-4o-mini
    ```
 
 **Output:**
@@ -139,6 +148,69 @@ Evaluation mode tests bot responses against style guidelines using a hybrid scor
 - Console output with statistics and pass/fail rates
 
 The evaluator uses async batch processing with rate limiting for efficient testing of multiple prompts.
+
+## RAG Evaluation Mode
+
+RAG evaluation mode tests the bot's ability to answer document-based questions correctly using the knowledge base:
+
+**Evaluation Logic:**
+
+1. **In-scope questions** (`oos=false`):
+   - ✅ PASS if: response has at least 1 citation with valid `source`, `page`, and `snippet` fields
+   - ❌ FAIL if: no citations or citations are empty/invalid
+
+2. **Out-of-scope questions** (`oos=true`):
+   - ✅ PASS if: answer uses fallback phrase (admits "don't know") AND no citations provided
+   - ❌ FAIL if: bot hallucinated an answer or provided fake citations
+
+**Setup:**
+
+1. Create test questions in [`data/eval_rag_prompts.json`](data/eval_rag_prompts.json:1) with the following format:
+   ```json
+   {
+       "prompts": [
+           {
+               "question": "Сколько дней на возврат?",
+               "oos": false,
+               "category": "returns"
+           },
+           {
+               "question": "Принимаете криптовалюту?",
+               "oos": true,
+               "category": "payment"
+           }
+       ]
+   }
+   ```
+   - `question`: The test question to evaluate
+   - `oos`: `false` for in-scope questions, `true` for out-of-scope questions
+   - `category`: Category for grouping results (e.g., "returns", "shipping", "payment")
+
+2. Run evaluation:
+   ```bash
+   python app_lc.py evaluate-rag
+   # or: make run-rag-eval
+   ```
+
+**Output:**
+- Detailed report: [`reports/rag_eval.json`](reports/rag_eval.json:1)
+- Console output with:
+  - Pass rate percentage
+  - Target threshold (80%)
+  - Passed/failed test counts
+  - Results breakdown by category
+  - List of failed tests with reasons
+
+**Metrics:**
+- **Pass Rate**: Percentage of tests that passed
+- **Target**: 80% pass rate or higher
+- **Category Breakdown**: Pass/fail counts grouped by question category
+- **Failed Tests**: Detailed list of questions that failed with reasons
+
+The evaluation ensures the bot:
+- Correctly answers questions using the knowledge base with proper citations
+- Appropriately handles out-of-scope questions without hallucinating
+- Maintains data integrity by not providing fake citations
 
 ## Interactive Bot Examples
 
@@ -155,6 +227,7 @@ Once running in bot mode, try these interactions:
 - **Tool Integration**: Creating custom tools for specific tasks
 - **Personality Configuration**: YAML-based bot personality management
 - **Style Evaluation**: Hybrid rule-based and LLM-based quality assessment
+- **RAG Evaluation**: Testing document-based question answering capabilities
 - **Memory Management**: Conversation state and session handling
 - **Async Processing**: Efficient batch evaluation with rate limiting
 - **Error Handling**: Robust API interaction patterns
