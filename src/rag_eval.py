@@ -26,6 +26,12 @@ class RAGEvaluator:
         self.bot = bot
         self.reports_dir = reports_dir
         self.reports_dir.mkdir(exist_ok=True)
+        
+        # Mapping of source filename to category
+        self.source_to_category = {
+            "policy_returns.pdf": "returns",
+            "shipping_terms.pdf": "shipping",            
+        }
     
     def _has_valid_citations(self, response: StructuredAnswer) -> bool:
         """Check if response has at least one valid citation.
@@ -96,24 +102,55 @@ class RAGEvaluator:
         
         return any(indicator in answer_text for indicator in fallback_indicators)
     
-    def _evaluate_in_scope(self, response: StructuredAnswer) -> dict:
+    def _evaluate_in_scope(self, response: StructuredAnswer, expected_category: str) -> dict:
         """Evaluate an in-scope question (oos=false).
         
         PASS if: response has at least 1 citation with valid source, page, and snippet
-        FAIL if: no citations or citations are empty/invalid
+                AND at least one citation source matches the expected category
+        FAIL if: no citations or citations are empty/invalid or wrong source category
         
         Args:
             response: The bot's structured response
+            expected_category: The expected category for the question
             
         Returns:
             Evaluation result dictionary
         """
         has_valid_citations = self._has_valid_citations(response)
         
+        if not has_valid_citations:
+            return {
+                "pass": False,
+                "has_citations": False,
+                "reason": "No valid citations",
+            }
+            
+        # Check if any citation source matches the expected category
+        category_match = False
+        found_categories = []
+        
+        for citation in response.citations:
+            # Extract filename from path if necessary
+            source_name = Path(citation.source).name
+            category = self.source_to_category.get(source_name)
+            if category:
+                found_categories.append(category)
+                if category == expected_category:
+                    category_match = True
+            else:
+                found_categories.append(f"unknown({source_name})")
+        
+        if not category_match:
+            return {
+                "pass": False,
+                "has_citations": True,
+                "reason": f"Citations found but none match expected category '{expected_category}'. Found: {', '.join(set(found_categories))}",
+            }
+            
         return {
-            "pass": has_valid_citations,
-            "has_citations": has_valid_citations,
-            "reason": "Has valid citations" if has_valid_citations else "No valid citations",
+            "pass": True,
+            "has_citations": True,
+            "reason": "Has valid citations from correct source category",
         }
     
     def _evaluate_out_of_scope(self, response: StructuredAnswer) -> dict:
@@ -169,7 +206,7 @@ class RAGEvaluator:
             if oos:
                 eval_result = self._evaluate_out_of_scope(response)
             else:
-                eval_result = self._evaluate_in_scope(response)
+                eval_result = self._evaluate_in_scope(response, category)
             
             return {
                 "q": question,
