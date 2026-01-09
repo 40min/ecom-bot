@@ -59,7 +59,12 @@ This is a **demo/test project** created to explore and experiment with LangChain
    - **OpenRouter** (default): `API_URL=https://openrouter.ai/api/v1`
    - **OpenAI**: `API_URL=https://api.openai.com/v1`
 
-3. **Run the bot:**
+3. **Build the knowledge base index:**
+   ```bash
+   make build-index
+   ```
+
+4. **Run the bot:**
    ```bash
    python app_lc.py bot
    # or use: make run-bot
@@ -95,6 +100,7 @@ uv run python app_lc.py evaluate-rag
 
 ```bash
 make help              # Show all available commands
+make build-index       # Build the knowledge base index
 make dev-setup         # Complete development setup
 make check-env         # Verify environment configuration
 make status            # Show project status
